@@ -37,7 +37,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DATASET_PATH = BASE_DIR / "dataset_aves"
 DATASET_SOFTEN_PATH = BASE_DIR / "dataset_aves_soften"
 DATASET_FIR_PATH = BASE_DIR / "dataset_aves_fir"
-INFO_PATH = DATASET_PATH / "general_info_aves.json"
+INFO_PATH = BASE_DIR / "general_info_aves.json"
 
 DEFAULT_BUTTER_ORDER = 6
 DEFAULT_FIR_TAPS = 255

@@ -4,3 +4,4 @@ dataset_aves
 dataset_aves_soften
 
 .python-version
+config/__pycache__

@@ -28,6 +28,14 @@ def compute_fft(y: np.ndarray, sr: int) -> Tuple[np.ndarray, np.ndarray]:
     return freqs, magnitude
 
 
+def apply_hann_window(y: np.ndarray) -> np.ndarray:
+    """Aplica una ventana de Hann a la señal para mejorar el análisis espectral."""
+    if y.size == 0:
+        return y.astype(np.float32, copy=False)
+    window = np.hanning(len(y)).astype(np.float32, copy=False)
+    return y.astype(np.float32, copy=False) * window
+
+
 def design_butterworth_bandpass_sr(sample_rate: int, low_hz: float, high_hz: float, order: int = 6):
     """Diseña un filtro Butterworth en salida SOS con normalización por Nyquist."""
     nyquist = 0.5 * sample_rate
