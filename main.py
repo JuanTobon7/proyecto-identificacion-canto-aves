@@ -19,7 +19,6 @@ import logging
 import re
 import threading
 import urllib.request
-from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -128,6 +127,11 @@ TEXT_STATUS_NO_LIVE = "No se pudo iniciar la captura en vivo."
 TEXT_STATUS_NO_LOCAL = "No se pudo predecir el audio seleccionado."
 TEXT_STATUS_NO_LIVE_PRED = "No se pudo predecir la captura en vivo."
 
+LIVE_UPDATE_MS = 80
+LIVE_SPECTRUM_WINDOW_SECONDS = 0.35
+LIVE_MAX_FREQ_HZ = 12000.0
+LIVE_MAX_POINTS = 1200
+
 
 @dataclass
 class ModelBundle:
@@ -162,7 +166,10 @@ class LiveAudioBuffer:
     def __init__(self, sample_rate: int = 44100, seconds: int = 6):
         self.sample_rate = sample_rate
         self.seconds = seconds
-        self.samples = deque(maxlen=sample_rate * seconds)
+        self.capacity = max(1, sample_rate * seconds)
+        self.buffer = np.zeros(self.capacity, dtype=np.float32)
+        self.write_index = 0
+        self.filled = 0
         self.lock = threading.Lock()
         self.stream = None
         self.active = False
@@ -174,7 +181,10 @@ class LiveAudioBuffer:
         if self.active:
             return
 
-        self.samples.clear()
+        with self.lock:
+            self.buffer.fill(0.0)
+            self.write_index = 0
+            self.filled = 0
         self.stream = sd.InputStream(
             samplerate=self.sample_rate,
             channels=1,
@@ -189,8 +199,26 @@ class LiveAudioBuffer:
         if status:
             logger.warning("Audio en vivo: %s", status)
         chunk = np.asarray(indata[:, 0], dtype=np.float32)
+        chunk_size = int(chunk.size)
+        if chunk_size == 0:
+            return
         with self.lock:
-            self.samples.extend(chunk.tolist())
+            if chunk_size >= self.capacity:
+                self.buffer[:] = chunk[-self.capacity:]
+                self.write_index = 0
+                self.filled = self.capacity
+                return
+
+            end_index = self.write_index + chunk_size
+            if end_index <= self.capacity:
+                self.buffer[self.write_index:end_index] = chunk
+            else:
+                first = self.capacity - self.write_index
+                self.buffer[self.write_index:] = chunk[:first]
+                self.buffer[: end_index - self.capacity] = chunk[first:]
+
+            self.write_index = end_index % self.capacity
+            self.filled = min(self.capacity, self.filled + chunk_size)
 
     def stop(self) -> None:
         if self.stream is not None:
@@ -203,9 +231,35 @@ class LiveAudioBuffer:
 
     def get_audio(self) -> np.ndarray:
         with self.lock:
-            if not self.samples:
+            if self.filled == 0:
                 return np.array([], dtype=np.float32)
-            return np.asarray(self.samples, dtype=np.float32)
+
+            if self.filled < self.capacity:
+                return self.buffer[:self.filled].copy()
+
+            if self.write_index == 0:
+                return self.buffer.copy()
+
+            return np.concatenate((self.buffer[self.write_index:], self.buffer[:self.write_index])).astype(np.float32, copy=False)
+
+    def get_recent_audio(self, max_samples: int) -> np.ndarray:
+        sample_count = int(max_samples)
+        if sample_count <= 0:
+            return np.array([], dtype=np.float32)
+
+        with self.lock:
+            if self.filled == 0:
+                return np.array([], dtype=np.float32)
+
+            take = min(sample_count, self.filled)
+            if self.filled < self.capacity:
+                return self.buffer[self.filled - take:self.filled].copy()
+
+            start = (self.write_index - take) % self.capacity
+            if start < self.write_index:
+                return self.buffer[start:self.write_index].copy()
+
+            return np.concatenate((self.buffer[start:], self.buffer[:self.write_index])).astype(np.float32, copy=False)
 
 
 def normalize_name(value: str) -> str:
@@ -512,6 +566,7 @@ class BirdClassifierApp(Tk):
         self._live_predict_running = False
         self._live_predict_lock = threading.Lock()
         self.live_predict_window_seconds = 1.0  # use last N seconds for each live prediction
+        self._last_live_species_key: Optional[str] = None
 
         self._configure_style()
         self._build_layout()
@@ -823,8 +878,17 @@ class BirdClassifierApp(Tk):
             self.image_caption.configure(text=TEXT_IMAGE_MISSING)
 
     def _show_prediction_result(self, result: Dict[str, Any]) -> None:
-        predicted_label = result["predicted_label"]
+        predicted_label = result.get("predicted_label")
         confidence = result.get("confidence")
+
+        if not predicted_label:
+            self.prediction_text.set("No clasificable")
+            self.confidence_text.set(TEXT_CONFIDENCE_DEFAULT)
+            self._update_info_panel(None)
+            freqs = result.get("freqs", np.array([]))
+            magnitude = result.get("magnitude", np.array([]))
+            self._plot_spectrum(freqs, magnitude, title=TEXT_LIVE)
+            return
 
         bird = self.bird_catalog.get(normalize_name(predicted_label))
         if bird is None:
@@ -892,32 +956,136 @@ class BirdClassifierApp(Tk):
             messagebox.showerror(TEXT_LIVE_ERROR, str(exc))
             self.status_text.set(TEXT_STATUS_NO_LIVE)
 
+    def _plot_live_spectrum_fast(self, freqs: np.ndarray, magnitude: np.ndarray) -> None:
+        if freqs.size == 0 or magnitude.size == 0:
+            self.spectrum_line.set_data([], [])
+            self.ax.set_xlim(0, 1)
+            self.ax.set_ylim(0, 1)
+            self.ax.set_title(TEXT_LIVE, color=TEXT)
+            self.canvas.draw_idle()
+            return
+
+        mask = freqs <= LIVE_MAX_FREQ_HZ
+        x = freqs[mask]
+        y = magnitude[mask]
+        if x.size == 0 or y.size == 0:
+            self.spectrum_line.set_data([], [])
+            self.ax.set_xlim(0, 1)
+            self.ax.set_ylim(0, 1)
+            self.ax.set_title(TEXT_LIVE, color=TEXT)
+            self.canvas.draw_idle()
+            return
+
+        if x.size > LIVE_MAX_POINTS:
+            index = np.linspace(0, x.size - 1, LIVE_MAX_POINTS, dtype=np.int32)
+            x = x[index]
+            y = y[index]
+
+        self.spectrum_line.set_data(x, y)
+        x_max = float(x[-1]) if x.size else LIVE_MAX_FREQ_HZ
+        y_max = float(np.max(y)) if y.size else 1.0
+        self.ax.set_xlim(0, max(1000.0, min(LIVE_MAX_FREQ_HZ, x_max)))
+        self.ax.set_ylim(0, max(1e-6, y_max * 1.05))
+        self.ax.set_title(TEXT_LIVE, color=TEXT)
+        self.canvas.draw_idle()
+
+    def _live_window_lengths(self, sample_rate: int) -> Tuple[int, int]:
+        live_window_len = int(LIVE_SPECTRUM_WINDOW_SECONDS * float(sample_rate))
+        if live_window_len <= 0:
+            live_window_len = sample_rate
+
+        predict_window_len = int(self.live_predict_window_seconds * float(sample_rate))
+        if predict_window_len <= 0:
+            predict_window_len = sample_rate
+
+        return live_window_len, predict_window_len
+
+    def _try_start_live_prediction(self, audio: np.ndarray, predict_window_len: int, sample_rate: int) -> None:
+        if self.current_model is None or self._live_predict_running:
+            return
+
+        audio_window = audio[-predict_window_len:].copy()
+        worker = threading.Thread(target=self._do_live_predict, args=(audio_window, sample_rate), daemon=True)
+        worker.start()
+
+    def _predict_live_result(self, audio: np.ndarray, sample_rate: int) -> Optional[Dict[str, Any]]:
+        model_snapshot = self.current_model
+        if model_snapshot is None:
+            return None
+        try:
+            return predict_species(model_snapshot, audio, sample_rate)
+        except Exception as exc:
+            logger.exception("Error during live prediction: %s", exc)
+            return None
+
+    def _schedule_live_result(self, result: Dict[str, Any]) -> None:
+        try:
+            self.after(0, lambda: self._handle_live_result(result))
+        except Exception:
+            logger.exception("Error scheduling UI update for live prediction")
+
+    def _handle_live_rejected_result(self, result: Dict[str, Any]) -> None:
+        self.status_text.set(f"{TEXT_LIVE_PREDICTED} - Rechazado: {result.get('rejection_reason')}")
+        self.prediction_text.set("No clasificable")
+        self.confidence_text.set(TEXT_CONFIDENCE_DEFAULT)
+
+    def _resolve_bird_from_label(self, predicted_label: str) -> Optional[BirdInfo]:
+        bird = self.bird_catalog.get(normalize_name(predicted_label))
+        if bird is None:
+            bird = self.bird_catalog.get(predicted_label)
+        return bird
+
+    def _handle_live_accepted_result(self, predicted_label: str, confidence: Optional[float]) -> None:
+        self.status_text.set(TEXT_LIVE_PREDICTED)
+        bird = self._resolve_bird_from_label(predicted_label)
+
+        display_name = bird.common_name_en if bird is not None else str(predicted_label).replace("_", " ")
+        self.prediction_text.set(display_name)
+        if confidence is not None:
+            self.confidence_text.set(f"Confianza: {confidence:.2%}")
+        else:
+            self.confidence_text.set(TEXT_CONFIDENCE_DEFAULT)
+
+        # Refresh info panel only when species changes to avoid network/image overhead.
+        new_key = normalize_name(predicted_label)
+        if new_key != self._last_live_species_key:
+            self._last_live_species_key = new_key
+            self._update_info_panel(bird)
+
+    def _process_live_audio_frame(self, audio: np.ndarray, sample_rate: int, live_window_len: int, predict_window_len: int) -> None:
+        if audio.size <= 64:
+            return
+
+        audio_live = audio[-live_window_len:]
+        freqs, magnitude, _ = extract_energy_vector(audio_live, sample_rate, self.current_model.frequency_bands if self.current_model else [])
+        self.current_audio = audio
+        self.current_sample_rate = sample_rate
+        self._plot_live_spectrum_fast(freqs, magnitude)
+
+        # Launch asynchronous prediction on the most recent window (avoid overlapping predictions)
+        try:
+            self._try_start_live_prediction(audio, predict_window_len, sample_rate)
+        except Exception:
+            logger.exception("Error iniciando predicción en background")
+
+    def _release_live_predict_lock(self) -> None:
+        self._live_predict_running = False
+        try:
+            self._live_predict_lock.release()
+        except Exception:
+            pass
+
     def _schedule_live_update(self) -> None:
         if not self.live_buffer.active:
             return
 
-        audio = self.live_buffer.get_audio()
-        if audio.size > 64:
-            freqs, magnitude, _ = extract_energy_vector(audio, self.live_buffer.sample_rate, self.current_model.frequency_bands if self.current_model else [])
-            self.current_audio = audio
-            self.current_sample_rate = self.live_buffer.sample_rate
-            self._plot_spectrum(freqs, magnitude, title=TEXT_LIVE)
+        sample_rate = int(self.live_buffer.sample_rate)
+        live_window_len, predict_window_len = self._live_window_lengths(sample_rate)
+        request_len = max(live_window_len, predict_window_len)
+        audio = self.live_buffer.get_recent_audio(request_len)
+        self._process_live_audio_frame(audio, sample_rate, live_window_len, predict_window_len)
 
-            # Launch asynchronous prediction on the most recent window (avoid overlapping predictions)
-            try:
-                if self.current_model is not None and not self._live_predict_running:
-                    # copy latest window
-                    window_len = int(self.live_predict_window_seconds * float(self.live_buffer.sample_rate))
-                    if window_len <= 0:
-                        window_len = min(len(audio), 44100)
-                    audio_window = audio[-window_len:].copy()
-                    # start background prediction
-                    t = threading.Thread(target=self._do_live_predict, args=(audio_window, int(self.live_buffer.sample_rate)), daemon=True)
-                    t.start()
-            except Exception:
-                logger.exception("Error iniciando predicción en background")
-
-        self.live_after_id = self.after(200, self._schedule_live_update)
+        self.live_after_id = self.after(LIVE_UPDATE_MS, self._schedule_live_update)
 
 
     def _do_live_predict(self, audio: np.ndarray, sample_rate: int) -> None:
@@ -926,36 +1094,26 @@ class BirdClassifierApp(Tk):
             return
         self._live_predict_running = True
         try:
-            # local snapshot of model to avoid races
-            model_snapshot = self.current_model
-            if model_snapshot is None:
+            result = self._predict_live_result(audio, sample_rate)
+            if result is None:
                 return
-            try:
-                result = predict_species(model_snapshot, audio, sample_rate)
-            except Exception as exc:
-                logger.exception("Error during live prediction: %s", exc)
-                return
-            # schedule UI update on main thread
-            try:
-                self.after(0, lambda: self._handle_live_result(result))
-            except Exception:
-                logger.exception("Error scheduling UI update for live prediction")
+            self._schedule_live_result(result)
         finally:
-            self._live_predict_running = False
-            try:
-                self._live_predict_lock.release()
-            except Exception:
-                pass
+            self._release_live_predict_lock()
 
 
     def _handle_live_result(self, result: Dict[str, Any]) -> None:
-        # Update status and UI with live prediction result
+        # Keep live updates light: avoid reloading image/text on every frame.
         try:
+            predicted_label = result.get("predicted_label")
+            confidence = result.get("confidence")
+
             if result.get("rejected"):
-                self.status_text.set(f"{TEXT_LIVE_PREDICTED} - Rechazado: {result.get('rejection_reason')}")
-            else:
-                self.status_text.set(TEXT_LIVE_PREDICTED)
-            self._show_prediction_result(result)
+                self._handle_live_rejected_result(result)
+                return
+
+            if predicted_label:
+                self._handle_live_accepted_result(str(predicted_label), confidence)
         except Exception:
             logger.exception("Error al actualizar UI con resultado en vivo")
 
@@ -970,6 +1128,7 @@ class BirdClassifierApp(Tk):
         if self.live_buffer.active:
             self.live_buffer.stop()
             self.status_text.set(TEXT_LIVE_STOPPED)
+        self._last_live_species_key = None
         self._refresh_mode_ui()
 
     def predict_live_audio(self) -> None:

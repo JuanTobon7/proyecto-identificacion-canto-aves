@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Explicacion del pipeline de clasificacion de aves</title>
+  <!-- KaTeX para renderizar las fórmulas matemáticas -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true},{left: '$', right: '$', display: false}]});"></script>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --card: #121a31;
+      --text: #e8eefc;
+      --muted: #a8b6d9;
+      --accent: #54c2ff;
+      --ok: #4ade80;
+      --warn: #f59e0b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: radial-gradient(circle at 20% 0%, #182447, var(--bg));
+      color: var(--text);
+      line-height: 1.55;
+    }
+    .wrap {
+      max-width: 980px;
+      margin: 28px auto;
+      padding: 0 18px 40px;
+    }
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 18px 20px;
+      margin-bottom: 14px;
+    }
+    h1, h2 { margin: 0 0 10px; }
+    h1 { font-size: 1.7rem; color: var(--accent); }
+    h2 { font-size: 1.2rem; color: #b9d5ff; }
+    p { margin: 10px 0; }
+    ul { margin: 8px 0 8px 18px; }
+    code {
+      background: rgba(255,255,255,0.07);
+      padding: 2px 6px;
+      border-radius: 6px;
+      color: #dff3ff;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 0.93rem;
+    }
+    .ok { color: var(--ok); }
+    .warn { color: var(--warn); }
+    .small { color: var(--muted); font-size: 0.95rem; }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="card">
+      <h1>Como se evaluan los perfiles y las frecuencias</h1>
+      <p>
+        Esta explicacion describe exactamente como funciona tu clasificador actual en <code>main.py</code>.
+        El flujo completo es: <strong>audio -&gt; FFT -&gt; energia por bandas -&gt; distancia a perfiles -&gt; decision con rechazo</strong>.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>1) De donde salen los perfiles</h2>
+      <p>
+        Al cargar un modelo JSON, se leen dos cosas clave:
+      </p>
+      <ul>
+        <li><code>frequency_bands</code>: bandas de frecuencia que se usaran para extraer caracteristicas.</li>
+        <li><code>species_profiles</code>: un perfil por especie con su vector promedio y su variabilidad.</li>
+      </ul>
+      <p class="small">
+        En tu archivo <code>model_spectral_cosine.json</code>, las bandas son:
+        50-500, 500-1000, 1000-2000, 2000-4000, 4000-8000 y 8000-16000 Hz.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>2) Como se usan las frecuencias en la practica</h2>
+      <p>
+        No se usa una sola frecuencia pico. Se usa la energia dentro de cada banda.
+      </p>
+      <ul>
+        <li>Se calcula FFT del audio.</li>
+        <li>Para cada banda <code>[low_hz, high_hz)</code>, se filtran los bins de FFT dentro del rango.</li>
+        <li>Se suma <code>magnitud^2</code> dentro de esa banda.</li>
+      </ul>
+      <p>
+        El resultado es un vector de 6 componentes (una por banda). Ese vector luego se normaliza para comparar forma espectral y no volumen bruto.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>3) Donde se comparan los perfiles</h2>
+      <p>
+        En la funcion de matching, se recorre cada especie y se calcula distancia entre:
+      </p>
+      <ul>
+        <li><code>vector_muestra</code>: lo que sale del audio actual.</li>
+        <li><code>profile_vector</code>: referencia promedio de la especie en el modelo.</li>
+      </ul>
+      <p>
+        La metrica es <strong>distancia euclidiana</strong>. Menor distancia = mejor coincidencia.
+      </p>
+      <p>
+        Si el modelo esta en modo <code>weighted</code>, antes de medir distancia se ponderan las dimensiones con <code>std_energy_vector</code> para penalizar/atenuar bandas segun variabilidad.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>4) Como se decide la clase final</h2>
+      <ul>
+        <li>Se toma el indice de menor distancia.</li>
+        <li>Se calcula umbral de rechazo por especie (si existe en JSON, se usa; si no, se deriva de la desviacion estandar).</li>
+        <li>Se revisa ambiguedad contra el segundo mejor match.</li>
+      </ul>
+      <p>
+        Reglas de rechazo:
+      </p>
+      <ul>
+        <li><span class="warn">Fuera de umbral</span>: si la mejor distancia es mayor que el threshold de esa especie.</li>
+        <li><span class="warn">Muestra ambigua</span>: si el mejor y segundo mejor estan demasiado cerca.</li>
+      </ul>
+      <p>
+        Si se rechaza, <code>predicted_label</code> queda en <code>None</code> y en la UI aparece "No clasificable".
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>5) Tiempo real: que cambia</h2>
+      <p>
+        En vivo, el sistema toma una ventana reciente del microfono y repite el mismo pipeline de arriba.
+        Para que sea rapido, usa una ventana corta para espectro y otra para prediccion, en hilo de fondo.
+      </p>
+      <ul>
+        <li>Render rapido del espectro (sin limpiar el eje en cada frame).</li>
+        <li>Prediccion asincrona para no congelar UI.</li>
+        <li>Actualizacion de imagen/info solo cuando cambia la especie.</li>
+      </ul>
+      <p class="ok">
+        Con esto, el criterio de clasificacion es el mismo en archivo y en tiempo real; solo cambia la forma de leer la ventana de audio.
+      </p>
+    </section>
+    <section class="card">
+      <h2>Matemáticas (formulación)</h2>
+      <p>Formulamos el pipeline de forma compacta:</p>
+      <ul>
+      <li>Transformada: $X(f) =$ FFT(windowed\, audio), magnitud $|X(f)|$.</li>
+      <li>Energia por banda $b=[f_{low},f_{high})$:</li>
+      </ul>
+      <p>En notación matemática:</p>
+      <p>$$E_b \,=\, \sum_{f\in [f_{low},f_{high})} |X(f)|^2$$</p>
+      <p>Si definimos el vector de energías por bandas como $\mathbf{v} = [E_1, E_2, \dots, E_B]$, se aplican dos normalizaciones utilizadas en el código:</p>
+      <ul>
+      <li>Normalización por pico (ventana de predicción en <code>extract_energy_vector</code>):
+        $$\mathbf{v}_{peak} = \frac{\mathbf{v}}{\max_i |v_i|}$$
+      </li>
+      <li>Normalización L2 (en entrenamiento y comparación):
+        $$\mathbf{v}_{L2} = \frac{\mathbf{v}}{\|\mathbf{v}\|_2},\quad \|\mathbf{v}\|_2 = \sqrt{\sum_i v_i^2}\;.
+        $$
+      </li>
+      </ul>
+      <p>Distancia Euclidiana entre muestra y perfil:</p>
+      <p>$$d(\mathbf{s},\mathbf{p}) = \|\mathbf{s} - \mathbf{p}\|_2 = \sqrt{\sum_i (s_i - p_i)^2}\;.$$</p>
+      <p>Umbral de rechazo (por especie):</p>
+      <p>$$\tau = \mu_d + 2\sigma_d$$</p>
+      <p>donde $\mu_d$ y $\sigma_d$ son la media y desviación estándar de las distancias entre muestras de entrenamiento y el perfil de esa especie.</p>
+      <p>Regla de ambigüedad (segunda mejor):</p>
+      <p>Rechazamos si la diferencia entre segundo-mejor y mejor es demasiado pequeña:</p>
+      <p>$$(d_{2} - d_{1}) \le M\cdot \max(\tau,\epsilon)$$</p>
+      <p>con $M$ el <em>ambiguity_margin</em> del modelo (p.ej. 0.05) y $\epsilon$ una pequeña constante para estabilidad.</p>
+      <p>Para confianza se usa una versión softmax sobre las puntuaciones negativas:</p>
+      <p>$$P_i = \frac{\exp(-d_i / T)}{\sum_j \exp(-d_j / T)}\quad\text{y}\quad\text{confidence}=\max_i P_i$$</p>
+    </section>
+
+    <section class="card">
+      <h2>Fragmentos de código (extractos relevantes)</h2>
+      <p>Copio aquí las funciones centrales tal cual están en <code>main.py</code> y <code>config/train_model.py</code>.</p>
+      <h3>main.py — extracción de vector de energía</h3>
+      <pre><code>def extract_energy_vector(audio: np.ndarray, sample_rate: int, bands: List[Tuple[float, float]]) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    audio_mono = to_mono_float32(audio)
+    if audio_mono.size == 0:
+      return np.array([]), np.array([]), np.array([])
+
+    windowed = apply_hann_window(audio_mono)
+    freqs, magnitude = compute_fft(windowed, sample_rate)
+
+    energy_vector: List[float] = []
+    for low_hz, high_hz in bands:
+      mask = (freqs >= low_hz) & (freqs < high_hz)
+      band_energy = float(np.sum(magnitude[mask] ** 2)) if np.any(mask) else 0.0
+      energy_vector.append(band_energy)
+
+    vector = np.asarray(energy_vector, dtype=np.float32)
+    peak = float(np.max(np.abs(vector))) if vector.size else 0.0
+    if peak > 0:
+      vector = vector / peak
+
+    return freqs, magnitude, vector
+      </code></pre>
+
+      <h3>main.py — cálculo de distancias y decisión</h3>
+      <pre><code>def compute_matching_distances(model_bundle: ModelBundle, feature_vector: np.ndarray) -> List[float]:
+    normalized_vector = normalize_feature_vector(feature_vector)
+    distances: List[float] = []
+
+    for profile in model_bundle.species_profiles:
+      profile_vector = np.asarray(profile.get("profile_vector", []), dtype=np.float32)
+      std_vector = np.asarray(profile.get("std_energy_vector", []), dtype=np.float32)
+      if model_bundle.scoring_method == "weighted":
+        reference_vector = weighted_profile_vector(profile_vector, std_vector)
+        sample_vector = weighted_profile_vector(normalized_vector, std_vector)
+      else:
+        reference_vector = profile_vector
+        sample_vector = normalized_vector
+      distances.append(euclidean_distance(sample_vector, reference_vector))
+
+    return distances
+
+
+  def derive_rejection_threshold(profile: Dict[str, Any]) -> float:
+    stored_threshold = profile.get("rejection_threshold")
+    if stored_threshold is not None:
+      return float(stored_threshold)
+
+    std_vector = np.asarray(profile.get("std_energy_vector", []), dtype=np.float32)
+    if std_vector.size == 0:
+      return 0.75
+
+    spread = float(np.mean(std_vector) + np.std(std_vector))
+    sample_count = float(profile.get("sample_count", 1) or 1)
+    sample_factor = min(max(sample_count / 1000.0, 0.6), 1.5)
+    return float(max(0.15, spread * (2.0 / sample_factor) + 0.05))
+
+
+  def predict_species(model_bundle: ModelBundle, audio: np.ndarray, sample_rate: int) -> Dict[str, Any]:
+    freqs, magnitude, feature_vector = extract_energy_vector(audio, sample_rate, model_bundle.frequency_bands)
+    if feature_vector.size == 0:
+      raise ValueError("No se pudieron extraer características del audio.")
+
+    distances = compute_matching_distances(model_bundle, feature_vector)
+    if not distances:
+      raise ValueError("El modelo no contiene perfiles para comparar.")
+
+    predicted_index = int(np.argmin(distances))
+    predicted_profile = model_bundle.species_profiles[predicted_index]
+    predicted_label = str(predicted_profile.get("species_key", ""))
+    best_distance = float(distances[predicted_index])
+    sorted_distances = sorted(distances)
+    second_best_distance = float(sorted_distances[1]) if len(sorted_distances) > 1 else float("inf")
+    threshold = derive_rejection_threshold(predicted_profile)
+    ambiguity_margin = float(model_bundle.model.get("matching", {}).get("ambiguity_margin", 0.05))
+    confidence = distances_to_confidence(distances, float(model_bundle.model.get("matching", {}).get("temperature", 0.35)))
+
+    rejected = best_distance > threshold or (second_best_distance - best_distance) <= max(ambiguity_margin * max(threshold, 1e-6), 0.01)
+    rejection_reason = None
+    if rejected:
+      if best_distance > threshold:
+        rejection_reason = "Fuera de umbral"
+      else:
+        rejection_reason = "Muestra ambigua"
+
+    return {
+      "predicted_label": None if rejected else predicted_label,
+      "predicted_index": predicted_index,
+      "confidence": confidence,
+      "feature_vector": feature_vector,
+      "freqs": freqs,
+      "magnitude": magnitude,
+      "distances": distances,
+      "best_distance": best_distance,
+      "threshold": threshold,
+      "rejected": rejected,
+      "rejection_reason": rejection_reason,
+    }
+      </code></pre>
+
+      <h3>config/train_model.py — cálculo de band energies y estadísticas</h3>
+      <pre><code>def extract_band_features(freqs: np.ndarray, magnitude: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    energy_vector: List[float] = []
+    mean_magnitude_vector: List[float] = []
+
+    for low_hz, high_hz in FREQUENCY_BANDS:
+      mask = (freqs >= low_hz) & (freqs < high_hz)
+      if np.any(mask):
+        band_energy = float(np.sum(magnitude[mask] ** 2))
+        band_mean_magnitude = float(np.mean(magnitude[mask]))
+      else:
+        band_energy = 0.0
+        band_mean_magnitude = 0.0
+      energy_vector.append(band_energy)
+      mean_magnitude_vector.append(band_mean_magnitude)
+
+    return np.asarray(energy_vector, dtype=np.float32), np.asarray(mean_magnitude_vector, dtype=np.float32)
+
+
+  def compute_species_distance_stats(energy_matrix: np.ndarray, profile_vector: np.ndarray, profile_std_vector: np.ndarray, scoring_method: str) -> Tuple[float, float, float]:
+    distances: List[float] = []
+    for sample_vector in energy_matrix:
+      normalized_sample = normalize_vector(np.asarray(sample_vector, dtype=np.float32))
+      if scoring_method == "weighted":
+        reference_vector = weighted_vector(profile_vector, profile_std_vector)
+        sample_reference = weighted_vector(normalized_sample, profile_std_vector)
+      else:
+        reference_vector = profile_vector
+        sample_reference = normalized_sample
+      distances.append(euclidean_distance(sample_reference, reference_vector))
+
+    distance_mean = float(np.mean(distances)) if distances else 0.0
+    distance_std = float(np.std(distances)) if distances else 0.0
+    rejection_threshold = float(distance_mean + 2.0 * distance_std)
+    return distance_mean, distance_std, rejection_threshold
+
+
+  def process_audio_file(audio_path: Path) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray]]:
+    try:
+      sample_rate, audio = wavfile.read(str(audio_path))
+      audio = to_mono_float32(audio)
+      if audio.size == 0:
+        return None
+
+      windowed = apply_hann_window(audio)
+      freqs, magnitude = compute_fft(windowed, sample_rate)
+      if freqs.size == 0:
+        logger.warning("FFT vacío para %s", audio_path.name)
+        return None
+
+      energy_vector, mean_magnitude_vector = extract_band_features(freqs, magnitude)
+      return normalize_vector(energy_vector), mean_magnitude_vector, magnitude
+    except Exception as exc:
+      logger.exception("Error procesando %s: %s", audio_path.name, exc)
+      return None
+      </code></pre>
+    </section>
+  </main>
+</body>
+</html>
