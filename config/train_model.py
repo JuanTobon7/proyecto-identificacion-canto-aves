@@ -45,8 +45,12 @@ FREQUENCY_BANDS = [
 ]
 
 
-def normalize_species_name(name: str) -> str:
-	return name.strip().replace(" ", "_").replace("/", "_")
+def normalize_species_name(name: Optional[str]) -> str:
+	if not name:
+		return ""
+	# Ensure we operate on a string even if the source uses non-string values
+	name_str = str(name)
+	return name_str.strip().replace(" ", "_").replace("/", "_")
 
 
 def band_name(low_hz: float, high_hz: float) -> str:
@@ -116,6 +120,37 @@ def normalize_vector(vector: np.ndarray) -> np.ndarray:
 	return vector.astype(np.float32, copy=False)
 
 
+def weighted_vector(vector: np.ndarray, std_vector: np.ndarray, epsilon: float = 1e-6) -> np.ndarray:
+	if vector.size == 0:
+		return vector.astype(np.float32, copy=False)
+	weights = 1.0 / np.maximum(std_vector, epsilon)
+	return (vector * weights).astype(np.float32, copy=False)
+
+
+def euclidean_distance(vector_a: np.ndarray, vector_b: np.ndarray) -> float:
+	if vector_a.size == 0 or vector_b.size == 0:
+		return 0.0
+	return float(np.linalg.norm(vector_a - vector_b))
+
+
+def compute_species_distance_stats(energy_matrix: np.ndarray, profile_vector: np.ndarray, profile_std_vector: np.ndarray, scoring_method: str) -> Tuple[float, float, float]:
+	distances: List[float] = []
+	for sample_vector in energy_matrix:
+		normalized_sample = normalize_vector(np.asarray(sample_vector, dtype=np.float32))
+		if scoring_method == "weighted":
+			reference_vector = weighted_vector(profile_vector, profile_std_vector)
+			sample_reference = weighted_vector(normalized_sample, profile_std_vector)
+		else:
+			reference_vector = profile_vector
+			sample_reference = normalized_sample
+		distances.append(euclidean_distance(sample_reference, reference_vector))
+
+	distance_mean = float(np.mean(distances)) if distances else 0.0
+	distance_std = float(np.std(distances)) if distances else 0.0
+	rejection_threshold = float(distance_mean + 2.0 * distance_std)
+	return distance_mean, distance_std, rejection_threshold
+
+
 def process_audio_file(audio_path: Path) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray]]:
 	try:
 		sample_rate, audio = wavfile.read(str(audio_path))
@@ -178,7 +213,7 @@ def build_dataset_summary(sample_count: int, band_energy_totals: np.ndarray, ban
 	}
 
 
-def build_species_profile(species_key: str, species_dir: Path, species_info: Dict[str, Dict[str, object]]) -> Optional[Dict[str, object]]:
+def build_species_profile(species_key: str, species_dir: Path, species_info: Dict[str, Dict[str, object]], scoring_method: str) -> Optional[Dict[str, object]]:
 	energy_vectors, mean_magnitude_vectors, sample_count = collect_species_samples(species_dir)
 	if sample_count == 0:
 		return None
@@ -189,6 +224,8 @@ def build_species_profile(species_key: str, species_dir: Path, species_info: Dic
 	energy_std = np.std(energy_matrix, axis=0) if energy_matrix.size else np.zeros(len(FREQUENCY_BANDS), dtype=np.float32)
 	mean_magnitude_mean = np.mean(mean_magnitude_matrix, axis=0) if mean_magnitude_matrix.size else np.zeros(len(FREQUENCY_BANDS), dtype=np.float32)
 	profile_vector = normalize_vector(np.asarray(energy_mean, dtype=np.float32))
+	profile_std_vector = np.asarray(energy_std, dtype=np.float32)
+	distance_mean, distance_std, rejection_threshold = compute_species_distance_stats(energy_matrix, profile_vector, profile_std_vector, scoring_method)
 
 	info = species_info.get(species_key, {})
 	frequency_info = info.get("vocalizaciones", {}).get("frecuencias_Hz", {}) if isinstance(info, dict) else {}
@@ -211,11 +248,14 @@ def build_species_profile(species_key: str, species_dir: Path, species_info: Dic
 		"profile_vector": profile_vector.tolist(),
 		"mean_energy_vector": energy_mean.astype(float).tolist(),
 		"std_energy_vector": energy_std.astype(float).tolist(),
+		"distance_mean": distance_mean,
+		"distance_std": distance_std,
+		"rejection_threshold": rejection_threshold,
 		"mean_magnitude_vector": mean_magnitude_mean.astype(float).tolist(),
 	}
 
 
-def load_dataset() -> Tuple[List[Dict[str, object]], Dict[str, object]]:
+def load_dataset(scoring_method: str) -> Tuple[List[Dict[str, object]], Dict[str, object]]:
 	if not DATASET_PATH.exists():
 		raise FileNotFoundError(f"Dataset no encontrado: {DATASET_PATH}")
 
@@ -232,7 +272,7 @@ def load_dataset() -> Tuple[List[Dict[str, object]], Dict[str, object]]:
 
 		species_key = species_dir.name
 		logger.info("Procesando especie: %s", species_key)
-		profile = build_species_profile(species_key, species_dir, species_info)
+		profile = build_species_profile(species_key, species_dir, species_info, scoring_method)
 		if profile is None:
 			logger.warning("  No hay muestras válidas para %s", species_key)
 			continue
@@ -261,8 +301,9 @@ def build_model_payload(scoring_method: str, profiles: List[Dict[str, object]], 
 		"species": [profile["species_key"] for profile in profiles],
 		"species_profiles": profiles,
 		"matching": {
-			"normalization": "l2",
-			"score_to_probability": "softmax",
+			"distance_metric": "euclidean",
+			"threshold_strategy": "mean_plus_2std",
+			"ambiguity_margin": 0.05,
 			"temperature": 0.35,
 		},
 	}
@@ -302,7 +343,7 @@ def main() -> None:
 	args = parser.parse_args()
 
 	try:
-		profiles, dataset_summary = load_dataset()
+		profiles, dataset_summary = load_dataset(args.model_type if args.model_type in {"cosine", "weighted"} else "cosine")
 		created_paths = build_and_save_models(args.model_type, args.output, profiles, dataset_summary)
 		logger.info("=" * 60)
 		logger.info("Plantillas generadas")

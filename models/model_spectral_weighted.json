@@ -151,6 +151,9 @@
         0.3031620681285858,
         0.0132612194865942
       ],
+      "distance_mean": 0.41765592795171086,
+      "distance_std": 0.2303911657222514,
+      "rejection_threshold": 0.8784382593962137,
       "mean_magnitude_vector": [
         2.397442599999522e-08,
         2.4631246375861338e-08,
@@ -198,6 +201,9 @@
         0.29061925411224365,
         0.10348265618085861
       ],
+      "distance_mean": 0.4073993997682497,
+      "distance_std": 0.22101280293880576,
+      "rejection_threshold": 0.8494250056458612,
       "mean_magnitude_vector": [
         2.4043487201197422e-08,
         2.436038393227591e-08,
@@ -245,6 +251,9 @@
         0.20309486985206604,
         0.10964860022068024
       ],
+      "distance_mean": 0.31151653914488364,
+      "distance_std": 0.21029265524790028,
+      "rejection_threshold": 0.7321018496406841,
       "mean_magnitude_vector": [
         2.2894251827665357e-08,
         2.3189162590142587e-08,
@@ -292,6 +301,9 @@
         3.5554018040784285e-07,
         3.457064678968891e-07
       ],
+      "distance_mean": 0.4931334372433317,
+      "distance_std": 0.23436632153021694,
+      "rejection_threshold": 0.9618660803037655,
       "mean_magnitude_vector": [
         0.001047005644068122,
         0.000591061485465616,
@@ -339,6 +351,9 @@
         0.346714586019516,
         3.033889584003191e-07
       ],
+      "distance_mean": 0.4835349448100655,
+      "distance_std": 0.22302354675433758,
+      "rejection_threshold": 0.9295820383187406,
       "mean_magnitude_vector": [
         3.0227489844492084e-08,
         1.1223453810771389e-07,
@@ -386,6 +401,9 @@
         0.214124396443367,
         0.2650943398475647
       ],
+      "distance_mean": 0.30178676781294805,
+      "distance_std": 0.26488943613165344,
+      "rejection_threshold": 0.831565640076255,
       "mean_magnitude_vector": [
         2.100468243781961e-08,
         2.114438935052476e-08,
@@ -397,8 +415,9 @@
     }
   ],
   "matching": {
-    "normalization": "l2",
-    "score_to_probability": "softmax",
+    "distance_metric": "euclidean",
+    "threshold_strategy": "mean_plus_2std",
+    "ambiguity_margin": 0.05,
     "temperature": 0.35
   }
 }

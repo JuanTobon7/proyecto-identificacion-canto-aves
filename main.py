@@ -369,38 +369,17 @@ def extract_energy_vector(audio: np.ndarray, sample_rate: int, bands: List[Tuple
     return freqs, magnitude, vector
 
 
-def cosine_similarity(vector_a: np.ndarray, vector_b: np.ndarray) -> float:
+def weighted_profile_vector(profile_vector: np.ndarray, std_vector: np.ndarray, epsilon: float = 1e-6) -> np.ndarray:
+    if profile_vector.size == 0:
+        return profile_vector.astype(np.float32, copy=False)
+    weights = 1.0 / np.maximum(std_vector, epsilon)
+    return (profile_vector * weights).astype(np.float32, copy=False)
+
+
+def euclidean_distance(vector_a: np.ndarray, vector_b: np.ndarray) -> float:
     if vector_a.size == 0 or vector_b.size == 0:
         return 0.0
-    norm_a = float(np.linalg.norm(vector_a))
-    norm_b = float(np.linalg.norm(vector_b))
-    if norm_a == 0 or norm_b == 0:
-        return 0.0
-    return float(np.dot(vector_a, vector_b) / (norm_a * norm_b))
-
-
-def choose_target_frequency(low_hz: float, high_hz: float, dominant_hz: float) -> float:
-    if dominant_hz > 0:
-        return dominant_hz
-    if high_hz > low_hz:
-        return (low_hz + high_hz) / 2.0
-    return 0.0
-
-
-def frequency_range_score(audio_hz: float, profile: Dict[str, Any]) -> float:
-    vocal_range = profile.get("vocalization_frequency_range", {}) or {}
-    low_hz = float(vocal_range.get("min_hz", 0.0) or 0.0)
-    high_hz = float(vocal_range.get("max_hz", 0.0) or 0.0)
-    dominant_hz = float(vocal_range.get("dominant_hz", 0.0) or 0.0)
-
-    target_hz = choose_target_frequency(low_hz, high_hz, dominant_hz)
-    if target_hz <= 0:
-        return 0.5
-
-    span = max(high_hz - low_hz, target_hz * 0.5, 1.0)
-    distance = abs(audio_hz - target_hz)
-    score = 1.0 - min(distance / span, 1.0)
-    return float(max(0.0, min(score, 1.0)))
+    return float(np.linalg.norm(vector_a - vector_b))
 
 
 def normalize_feature_vector(vector: np.ndarray) -> np.ndarray:
@@ -412,30 +391,45 @@ def normalize_feature_vector(vector: np.ndarray) -> np.ndarray:
     return vector.astype(np.float32, copy=False)
 
 
-def compute_matching_scores(model_bundle: ModelBundle, feature_vector: np.ndarray, dominant_frequency_hz: float) -> List[float]:
+def compute_matching_distances(model_bundle: ModelBundle, feature_vector: np.ndarray) -> List[float]:
     normalized_vector = normalize_feature_vector(feature_vector)
-    scores: List[float] = []
+    distances: List[float] = []
 
     for profile in model_bundle.species_profiles:
         profile_vector = np.asarray(profile.get("profile_vector", []), dtype=np.float32)
-        profile_similarity = cosine_similarity(normalized_vector, profile_vector)
-        range_score = frequency_range_score(dominant_frequency_hz, profile)
-
+        std_vector = np.asarray(profile.get("std_energy_vector", []), dtype=np.float32)
         if model_bundle.scoring_method == "weighted":
-            final_score = 0.70 * profile_similarity + 0.30 * range_score
+            reference_vector = weighted_profile_vector(profile_vector, std_vector)
+            sample_vector = weighted_profile_vector(normalized_vector, std_vector)
         else:
-            final_score = profile_similarity
+            reference_vector = profile_vector
+            sample_vector = normalized_vector
+        distances.append(euclidean_distance(sample_vector, reference_vector))
 
-        scores.append(float(final_score))
-
-    return scores
+    return distances
 
 
-def scores_to_confidence(scores: List[float], temperature: float = 0.35) -> Optional[float]:
-    if not scores:
+def derive_rejection_threshold(profile: Dict[str, Any]) -> float:
+    stored_threshold = profile.get("rejection_threshold")
+    if stored_threshold is not None:
+        return float(stored_threshold)
+
+    std_vector = np.asarray(profile.get("std_energy_vector", []), dtype=np.float32)
+    if std_vector.size == 0:
+        return 0.75
+
+    spread = float(np.mean(std_vector) + np.std(std_vector))
+    sample_count = float(profile.get("sample_count", 1) or 1)
+    sample_factor = min(max(sample_count / 1000.0, 0.6), 1.5)
+    return float(max(0.15, spread * (2.0 / sample_factor) + 0.05))
+
+
+def distances_to_confidence(distances: List[float], temperature: float = 0.35) -> Optional[float]:
+    if not distances:
         return None
-    values = np.asarray(scores, dtype=np.float32)
-    shifted = values - np.max(values)
+    values = np.asarray(distances, dtype=np.float32)
+    logits = -values
+    shifted = logits - np.max(logits)
     scaled = shifted / max(temperature, 1e-6)
     exp_scores = np.exp(scaled)
     total = float(np.sum(exp_scores))
@@ -450,24 +444,40 @@ def predict_species(model_bundle: ModelBundle, audio: np.ndarray, sample_rate: i
     if feature_vector.size == 0:
         raise ValueError("No se pudieron extraer características del audio.")
 
-    dominant_frequency_hz = float(freqs[int(np.argmax(magnitude))]) if magnitude.size else 0.0
-    scores = compute_matching_scores(model_bundle, feature_vector, dominant_frequency_hz)
-    if not scores:
+    distances = compute_matching_distances(model_bundle, feature_vector)
+    if not distances:
         raise ValueError("El modelo no contiene perfiles para comparar.")
 
-    predicted_index = int(np.argmax(scores))
+    predicted_index = int(np.argmin(distances))
     predicted_profile = model_bundle.species_profiles[predicted_index]
     predicted_label = str(predicted_profile.get("species_key", ""))
-    confidence = scores_to_confidence(scores, float(model_bundle.model.get("matching", {}).get("temperature", 0.35)))
+    best_distance = float(distances[predicted_index])
+    sorted_distances = sorted(distances)
+    second_best_distance = float(sorted_distances[1]) if len(sorted_distances) > 1 else float("inf")
+    threshold = derive_rejection_threshold(predicted_profile)
+    ambiguity_margin = float(model_bundle.model.get("matching", {}).get("ambiguity_margin", 0.05))
+    confidence = distances_to_confidence(distances, float(model_bundle.model.get("matching", {}).get("temperature", 0.35)))
+
+    rejected = best_distance > threshold or (second_best_distance - best_distance) <= max(ambiguity_margin * max(threshold, 1e-6), 0.01)
+    rejection_reason = None
+    if rejected:
+        if best_distance > threshold:
+            rejection_reason = "Fuera de umbral"
+        else:
+            rejection_reason = "Muestra ambigua"
 
     return {
-        "predicted_label": predicted_label,
+        "predicted_label": None if rejected else predicted_label,
         "predicted_index": predicted_index,
         "confidence": confidence,
         "feature_vector": feature_vector,
         "freqs": freqs,
         "magnitude": magnitude,
-        "scores": scores,
+        "distances": distances,
+        "best_distance": best_distance,
+        "threshold": threshold,
+        "rejected": rejected,
+        "rejection_reason": rejection_reason,
     }
 
 
@@ -499,6 +509,9 @@ class BirdClassifierApp(Tk):
         self.current_image = None
         self.live_buffer = LiveAudioBuffer()
         self.live_after_id: Optional[str] = None
+        self._live_predict_running = False
+        self._live_predict_lock = threading.Lock()
+        self.live_predict_window_seconds = 1.0  # use last N seconds for each live prediction
 
         self._configure_style()
         self._build_layout()
@@ -890,7 +903,61 @@ class BirdClassifierApp(Tk):
             self.current_sample_rate = self.live_buffer.sample_rate
             self._plot_spectrum(freqs, magnitude, title=TEXT_LIVE)
 
+            # Launch asynchronous prediction on the most recent window (avoid overlapping predictions)
+            try:
+                if self.current_model is not None and not self._live_predict_running:
+                    # copy latest window
+                    window_len = int(self.live_predict_window_seconds * float(self.live_buffer.sample_rate))
+                    if window_len <= 0:
+                        window_len = min(len(audio), 44100)
+                    audio_window = audio[-window_len:].copy()
+                    # start background prediction
+                    t = threading.Thread(target=self._do_live_predict, args=(audio_window, int(self.live_buffer.sample_rate)), daemon=True)
+                    t.start()
+            except Exception:
+                logger.exception("Error iniciando predicción en background")
+
         self.live_after_id = self.after(200, self._schedule_live_update)
+
+
+    def _do_live_predict(self, audio: np.ndarray, sample_rate: int) -> None:
+        # ensure only one background prediction runs at a time
+        if not self._live_predict_lock.acquire(blocking=False):
+            return
+        self._live_predict_running = True
+        try:
+            # local snapshot of model to avoid races
+            model_snapshot = self.current_model
+            if model_snapshot is None:
+                return
+            try:
+                result = predict_species(model_snapshot, audio, sample_rate)
+            except Exception as exc:
+                logger.exception("Error during live prediction: %s", exc)
+                return
+            # schedule UI update on main thread
+            try:
+                self.after(0, lambda: self._handle_live_result(result))
+            except Exception:
+                logger.exception("Error scheduling UI update for live prediction")
+        finally:
+            self._live_predict_running = False
+            try:
+                self._live_predict_lock.release()
+            except Exception:
+                pass
+
+
+    def _handle_live_result(self, result: Dict[str, Any]) -> None:
+        # Update status and UI with live prediction result
+        try:
+            if result.get("rejected"):
+                self.status_text.set(f"{TEXT_LIVE_PREDICTED} - Rechazado: {result.get('rejection_reason')}")
+            else:
+                self.status_text.set(TEXT_LIVE_PREDICTED)
+            self._show_prediction_result(result)
+        except Exception:
+            logger.exception("Error al actualizar UI con resultado en vivo")
 
     def stop_live_capture(self) -> None:
         if self.live_after_id is not None:
