@@ -1,0 +1,264 @@
+{
+  "aves": [
+    {
+      "nombre_comun_ingles": "Blue-gray Tanager",
+      "nombre_comun_espanol": "Azulejo palmero",
+      "nombre_cientifico": "Thraupis episcopus",
+      "familia": "Thraupidae",
+      "orden": "Passeriformes",
+      "descripcion": "Tángara de tamaño mediano, muy común en áreas abiertas, jardines y bordes de bosque. Plumaje azul-grisáceo con alas y cola de tonos más intensos. Altamente adaptable a entornos urbanos y rurales.",
+      "distribucion": "Desde México hasta Bolivia y Brasil; muy abundante en Colombia en tierras bajas y medias hasta 2000 m",
+      "img":"https://birdscolombia.com/2016/03/23/azulejo-comun/",
+      "habitat": [
+        "Bordes de bosque",
+        "Jardines",
+        "Áreas urbanas",
+        "Cultivos con árboles",
+        "Sabanas arboladas"
+      ],
+      "dieta": [
+        "Frutos",
+        "Néctar",
+        "Insectos"
+      ],
+      "estado_conservacion": "LC - Preocupación menor (IUCN)",
+      "longitud_cm": 16,
+      "peso_g": {
+        "min": 25,
+        "max": 35
+      },
+      "vocalizaciones": {
+        "descripcion": "Canto suave y chirriante, compuesto por frases cortas repetidas. Frecuente en contextos territoriales y de alimentación.",
+        "tipo_vocalización": [
+          "Canto",
+          "Llamada de contacto",
+          "Llamada de alarma"
+        ],
+        "frecuencias_Hz": {
+          "rango_principal": {
+            "min": 2500,
+            "max": 7000
+          },
+          "frecuencia_dominante": 4200,
+          "notas": "Canto de frecuencia media-alta; llama en rangos de 3–6 kHz predominantemente"
+        }
+      }
+    },
+    {
+      "nombre_comun_ingles": "Mourning Warbler",
+      "nombre_comun_espanol": "Reinita enlutada",
+      "nombre_cientifico": "Geothlypis philadelphia",
+      "familia": "Parulidae",
+      "orden": "Passeriformes",
+      "descripcion": "Reinita migratoria neotropical de tamaño pequeño. El macho adulto tiene capucha gris oscura con babero negro; vientre amarillo brillante. Habita en vegetación densa y arbustos de sotobosque.",
+      "distribucion": "Cría en Norteamérica (Canadá y norte de EE.UU.); inverna en Centroamérica y norte de Suramérica, incluyendo Colombia",
+      "img": "https://ebird.org/species/mouwar?siteLanguage=es_VE",
+      "habitat": [
+        "Sotobosque denso",
+        "Matorrales",
+        "Bordes de bosque húmedo",
+        "Vegetación secundaria"
+      ],
+      "dieta": [
+        "Insectos",
+        "Arañas",
+        "Larvas"
+      ],
+      "estado_conservacion": "LC - Preocupación menor (IUCN)",
+      "longitud_cm": 13,
+      "peso_g": {
+        "min": 10,
+        "max": 16
+      },
+      "vocalizaciones": {
+        "descripcion": "Canto descendente y rico, con frases silbadas características. Las llamadas de contacto son notas únicas graves.",
+        "tipo_vocalización": [
+          "Canto territorial",
+          "Llamada de vuelo",
+          "Llamada de contacto"
+        ],
+        "frecuencias_Hz": {
+          "rango_principal": {
+            "min": 3000,
+            "max": 8000
+          },
+          "frecuencia_dominante": 5000,
+          "notas": "Canto de 2–4 frases silbadas descendentes; la parte final es notablemente más grave (2.5–4 kHz)"
+        }
+      }
+    },
+    {
+      "nombre_comun_ingles": "Northern Yellow Warbler",
+      "nombre_comun_espanol": "Reinita amarilla norteña",
+      "nombre_cientifico": "Setophaga petechia",
+      "familia": "Parulidae",
+      "orden": "Passeriformes",
+      "descripcion": "Una de las reinitas más brillantes y reconocibles. Plumaje amarillo intenso; el macho presenta rayas rojizas en el pecho. Frecuente en manglares, riberas y jardines. Migratoria y residente en distintas subespecies.",
+      "distribucion": "Amplia distribución: desde Alaska y Canadá hasta el norte de Suramérica; algunas subespecies son residentes en costas tropicales de Colombia",
+      "img": "https://avesdeperu.org/parulidae/reinita-amarilla-setophaga-petechia/",
+      "habitat": [
+        "Manglares",
+        "Riberas con vegetación",
+        "Jardines",
+        "Matorrales húmedos"
+      ],
+      "dieta": [
+        "Insectos",
+        "Orugas",
+        "Larvas acuáticas"
+      ],
+      "estado_conservacion": "LC - Preocupación menor (IUCN)",
+      "longitud_cm": 12,
+      "peso_g": {
+        "min": 9,
+        "max": 13
+      },
+      "vocalizaciones": {
+        "descripcion": "Canto alegre y acelerado con notas finales ascendentes muy características. Patrón rítmico reconocible.",
+        "tipo_vocalización": [
+          "Canto",
+          "Llamada de contacto",
+          "Llamada de alarma"
+        ],
+        "frecuencias_Hz": {
+          "rango_principal": {
+            "min": 3500,
+            "max": 8500
+          },
+          "frecuencia_dominante": 5500,
+          "notas": "Canto de alta frecuencia con modulación ascendente hacia el final; llamadas en torno a 4–6 kHz"
+        }
+      }
+    },
+    {
+      "nombre_comun_ingles": "Sickle-winged Guan",
+      "nombre_comun_espanol": "Pava aligüiba",
+      "nombre_cientifico": "Chamaepetes goudotii",
+      "img":"https://andina.pe/agencia/noticia-ruta-pava-aliblanca-es-una-oportunidad-desarrollo-para-pueblos-lambayeque-y-piura-1045141.aspx",
+      "familia": "Cracidae",
+      "orden": "Galliformes",
+      "descripcion": "Cracid de tamaño mediano endémico de los Andes del noroeste. Se distingue por su piel facial azul brillante y la forma curvada de las alas primarias, que producen un sonido vibrador característico en vuelo. Arborícola y tímida.",
+      "distribucion": "Andes de Colombia, Ecuador y Perú; en Colombia presente en las tres cordilleras entre 1000 y 2700 m",
+      "habitat": [
+        "Bosque andino húmedo",
+        "Bosque nublado",
+        "Bordes de bosque de niebla"
+      ],
+      "dieta": [
+        "Frutos",
+        "Hojas tiernas",
+        "Brotes",
+        "Insectos ocasionales"
+      ],
+      "estado_conservacion": "LC - Preocupación menor (IUCN)",
+      "longitud_cm": 65,
+      "peso_g": {
+        "min": 700,
+        "max": 1100
+      },
+      "vocalizaciones": {
+        "descripcion": "Produce sonidos mecánicos con las alas en vuelo (zumbido o trino alar) en lugar de vocalizaciones complejas. Los llamados son notas graves y resoplidos.",
+        "tipo_vocalización": [
+          "Sonido mecánico alar",
+          "Llamada grave",
+          "Resoplido de alarma"
+        ],
+        "frecuencias_Hz": {
+          "rango_principal": {
+            "min": 200,
+            "max": 2000
+          },
+          "frecuencia_dominante": 600,
+          "notas": "Sonido alar de baja frecuencia (200–800 Hz); llamadas vocales entre 400–2000 Hz; especie de frecuencias bajas"
+        }
+      }
+    },
+    {
+      "nombre_comun_ingles": "Slaty Spinetail",
+      "nombre_comun_espanol": "Chamicero pizarroso",
+      "img": "https://ebird.org/species/slabru1?siteLanguage=es",
+      "nombre_cientifico": "Synallaxis brachyura",
+      "familia": "Furnariidae",
+      "orden": "Passeriformes",
+      "descripcion": "Furnárido de color gris pizarroso uniforme con cola larga escalonada. Habitante de matorrales y vegetación densa en tierras bajas y zonas húmedas. Se mueve furtivamente entre la vegetación y rara vez se expone al descubierto.",
+      "distribucion": "Desde Honduras hasta el noroeste de Perú y Venezuela; en Colombia en tierras bajas del Pacífico, Caribe y valles interandinos hasta 1500 m",
+      "habitat": [
+        "Matorrales densos",
+        "Orillas de ríos",
+        "Vegetación secundaria",
+        "Cañaverales",
+        "Bordes de humedales"
+      ],
+      "dieta": [
+        "Insectos",
+        "Artrópodos",
+        "Larvas"
+      ],
+      "estado_conservacion": "LC - Preocupación menor (IUCN)",
+      "longitud_cm": 17,
+      "peso_g": {
+        "min": 14,
+        "max": 20
+      },
+      "vocalizaciones": {
+        "descripcion": "Canto dueto característico entre pareja: serie de notas repetidas en aceleración terminando en un trino. Muy vocal al amanecer.",
+        "tipo_vocalización": [
+          "Canto dueto",
+          "Llamada de contacto",
+          "Canto territorial"
+        ],
+        "frecuencias_Hz": {
+          "rango_principal": {
+            "min": 1800,
+            "max": 5000
+          },
+          "frecuencia_dominante": 3000,
+          "notas": "Canto de frecuencia media; dueto sincronizado con frecuencias entre 2–4.5 kHz; llamadas en 1.8–3 kHz"
+        }
+      }
+    },
+    {
+      "nombre_comun_ingles": "Tropical Parula",
+      "nombre_comun_espanol": "Parula tropical",
+      "nombre_cientifico": "Setophaga pitiayumi",
+      "familia": "Parulidae",
+      "img":"https://birdsoftheworld.org/bow/species/tropar/cur/appearance?lang=es",
+      "orden": "Passeriformes",
+      "descripcion": "Reinita pequeña y activa de la copa de árboles. Partes superiores azul-grisáceas, pecho anaranjado-amarillo y partes inferiores amarillas. Se mueve constantemente buscando insectos entre el follaje. La única parula residente en Suramérica.",
+      "distribucion": "Desde Texas (EE.UU.) hasta Argentina; ampliamente distribuida en Colombia desde el nivel del mar hasta 2500 m",
+      "habitat": [
+        "Bordes de bosque",
+        "Bosque húmedo tropical",
+        "Jardines arbolados",
+        "Plantaciones con dosel"
+      ],
+      "dieta": [
+        "Insectos",
+        "Arañas",
+        "Néctar ocasional"
+      ],
+      "estado_conservacion": "LC - Preocupación menor (IUCN)",
+      "longitud_cm": 11,
+      "peso_g": {
+        "min": 6,
+        "max": 9
+      },
+      "vocalizaciones": {
+        "descripcion": "Canto ascendente en zumbido o trino, con notas finales más agudas y explosivas. Similar a la Parula norteña pero con variaciones regionales.",
+        "tipo_vocalización": [
+          "Canto",
+          "Llamada de contacto",
+          "Llamada de alarma"
+        ],
+        "frecuencias_Hz": {
+          "rango_principal": {
+            "min": 4000,
+            "max": 9000
+          },
+          "frecuencia_dominante": 6500,
+          "notas": "Canto de alta frecuencia ascendente; frecuencia dominante entre 5.5–8 kHz; una de las especies de mayor frecuencia en el grupo"
+        }
+      }
+    }
+  ]
+}

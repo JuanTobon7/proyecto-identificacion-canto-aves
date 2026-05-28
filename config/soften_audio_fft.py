@@ -22,7 +22,8 @@ from typing import Dict, Iterable, Tuple
 
 import numpy as np
 from scipy.io import wavfile
-from scipy.signal import butter, filtfilt, firwin, sosfiltfilt
+from scipy.signal import filtfilt, firwin
+from core.fft_filter import compute_fft, apply_butterworth_filter
 
 
 logging.basicConfig(
@@ -86,16 +87,8 @@ def ensure_mono(audio: np.ndarray) -> np.ndarray:
 
 
 def design_butterworth_bandpass(sample_rate: int, low_hz: float, high_hz: float, order: int = DEFAULT_BUTTER_ORDER):
-	nyquist = 0.5 * sample_rate
-	low = max(20.0, low_hz) / nyquist
-	high = min(high_hz, nyquist * 0.98) / nyquist
-
-	if not 0 < low < high < 1:
-		raise ValueError(
-			f"Banda inválida para Butterworth: low={low_hz}, high={high_hz}, sr={sample_rate}"
-		)
-
-	return butter(order, [low, high], btype="bandpass", output="sos")
+	# Esta función se delega a core.fft_filter.apply_butterworth_filter.
+	raise RuntimeError("use core.fft_filter.apply_butterworth_filter instead")
 
 
 def design_fir_bandpass(sample_rate: int, low_hz: float, high_hz: float, numtaps: int = DEFAULT_FIR_TAPS):
@@ -112,28 +105,28 @@ def design_fir_bandpass(sample_rate: int, low_hz: float, high_hz: float, numtaps
 
 
 def apply_filter(audio: np.ndarray, sample_rate: int, low_hz: float, high_hz: float, design: str):
-	audio = ensure_mono(audio)
+	"""Aplica el filtro seleccionado al audio y devuelve float32 normalizado.
 
+	- para 'butterworth' delega en core.apply_butterworth_filter
+	- para 'fir' diseña y aplica FIR localmente
+	"""
 	if design == "butterworth":
-		sos = design_butterworth_bandpass(sample_rate, low_hz, high_hz)
-		filtered = sosfiltfilt(sos, audio)
+		return apply_butterworth_filter(audio, sample_rate, low_hz, high_hz, order=DEFAULT_BUTTER_ORDER)
 	elif design == "fir":
+		# Asegurar mono
+		audio_mono = ensure_mono(audio)
 		taps = design_fir_bandpass(sample_rate, low_hz, high_hz)
-		padlen = min(len(audio) - 1, 3 * (len(taps) - 1))
+		padlen = min(len(audio_mono) - 1, 3 * (len(taps) - 1))
 		if padlen < 1:
-			# Si el audio es demasiado corto, usar convolución directa.
-			filtered = np.convolve(audio, taps, mode="same")
+			filtered = np.convolve(audio_mono, taps, mode="same")
 		else:
-			filtered = filtfilt(taps, [1.0], audio, padlen=padlen)
+			filtered = filtfilt(taps, [1.0], audio_mono, padlen=padlen)
+		peak = np.max(np.abs(filtered)) if filtered.size else 0.0
+		if peak > 0:
+			filtered = 0.98 * filtered / peak
+		return filtered.astype(np.float32, copy=False)
 	else:
 		raise ValueError(f"Diseño no soportado: {design}")
-
-	# Normalización suave para evitar clipping al exportar.
-	peak = np.max(np.abs(filtered)) if filtered.size else 0.0
-	if peak > 0:
-		filtered = 0.98 * filtered / peak
-
-	return filtered.astype(np.float32, copy=False)
 
 
 def process_audio_file(audio_path: Path, output_path: Path, low_hz: float, high_hz: float, design: str):
