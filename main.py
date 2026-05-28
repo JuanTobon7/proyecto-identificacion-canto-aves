@@ -139,6 +139,7 @@ class ModelBundle:
     model_path: Path
     metadata_path: Path
     model: Any
+    model_kind: str
     species: List[str]
     frequency_bands: List[Tuple[float, float]]
     scoring_method: str
@@ -361,7 +362,13 @@ def extract_image_url_from_html(base_url: str, html: str) -> Optional[str]:
 
 
 def load_model_bundle(model_type: str) -> ModelBundle:
-    model_path = MODELS_DIR / f"model_{model_type}.json"
+    model_path = MODELS_DIR / model_type
+    if model_path.suffix.lower() != ".json":
+        model_path = MODELS_DIR / f"{model_type}.json"
+    if not model_path.exists():
+        legacy_path = MODELS_DIR / f"model_{model_type}.json"
+        if legacy_path.exists():
+            model_path = legacy_path
     metadata_path = model_path
 
     if not model_path.exists():
@@ -370,7 +377,9 @@ def load_model_bundle(model_type: str) -> ModelBundle:
     with model_path.open("r", encoding="utf-8") as handle:
         model = json.load(handle)
 
-    frequency_bands = [tuple(band) for band in model.get("frequency_bands", [])]
+    model_kind = str(model.get("kind", ""))
+    raw_bands = model.get("frequency_bands") or model.get("bands") or []
+    frequency_bands = [tuple(float(value) for value in band) for band in raw_bands]
     species_profiles = list(model.get("species_profiles", []))
     species = [profile.get("species_key", "") for profile in species_profiles]
 
@@ -379,6 +388,7 @@ def load_model_bundle(model_type: str) -> ModelBundle:
         model_path=model_path,
         metadata_path=metadata_path,
         model=model,
+        model_kind=model_kind,
         species=species,
         frequency_bands=frequency_bands,
         scoring_method=str(model.get("scoring_method", "cosine")),
@@ -392,16 +402,25 @@ def discover_models() -> List[str]:
         return []
 
     available = []
-    for model_file in sorted(MODELS_DIR.glob("model_*.json")):
-        model_type = model_file.stem.replace("model_", "", 1)
+    for model_file in sorted(MODELS_DIR.glob("*.json")):
+        model_type = model_file.stem
         with model_file.open("r", encoding="utf-8") as handle:
             payload = json.load(handle)
-        if payload.get("kind") == "deterministic_spectral_template":
+        if isinstance(payload, dict) and (
+            payload.get("kind") == "deterministic_spectral_template"
+            or payload.get("kind") == "filterbank_energy_thresholds"
+            or payload.get("species_profiles")
+        ):
             available.append(model_type)
-    return available
+    return sorted(dict.fromkeys(available))
 
 
-def extract_energy_vector(audio: np.ndarray, sample_rate: int, bands: List[Tuple[float, float]]) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def extract_energy_vector(
+    audio: np.ndarray,
+    sample_rate: int,
+    bands: List[Tuple[float, float]],
+    normalize: bool = True,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     audio_mono = to_mono_float32(audio)
     if audio_mono.size == 0:
         return np.array([]), np.array([]), np.array([])
@@ -416,9 +435,9 @@ def extract_energy_vector(audio: np.ndarray, sample_rate: int, bands: List[Tuple
         energy_vector.append(band_energy)
 
     vector = np.asarray(energy_vector, dtype=np.float32)
-    peak = float(np.max(np.abs(vector))) if vector.size else 0.0
-    if peak > 0:
-        vector = vector / peak
+    if normalize:
+        # Normalize with L2 to match training pipeline (training normalizes with L2)
+        vector = normalize_feature_vector(vector)
 
     return freqs, magnitude, vector
 
@@ -443,6 +462,16 @@ def normalize_feature_vector(vector: np.ndarray) -> np.ndarray:
     if norm > 0:
         return (vector / norm).astype(np.float32, copy=False)
     return vector.astype(np.float32, copy=False)
+
+
+def spectral_centroid(freqs: np.ndarray, magnitude: np.ndarray) -> float:
+    """Compute spectral centroid from FFT freqs and magnitude."""
+    if freqs.size == 0 or magnitude.size == 0:
+        return 0.0
+    total_mag = float(np.sum(magnitude))
+    if total_mag <= 0:
+        return 0.0
+    return float(np.sum(freqs * magnitude) / total_mag)
 
 
 def compute_matching_distances(model_bundle: ModelBundle, feature_vector: np.ndarray) -> List[float]:
@@ -494,31 +523,103 @@ def distances_to_confidence(distances: List[float], temperature: float = 0.35) -
 
 
 def predict_species(model_bundle: ModelBundle, audio: np.ndarray, sample_rate: int) -> Dict[str, Any]:
-    freqs, magnitude, feature_vector = extract_energy_vector(audio, sample_rate, model_bundle.frequency_bands)
+    is_filterbank_model = model_bundle.model_kind == "filterbank_energy_thresholds"
+    freqs, magnitude, feature_vector = extract_energy_vector(
+        audio,
+        sample_rate,
+        model_bundle.frequency_bands,
+        normalize=not is_filterbank_model,
+    )
     if feature_vector.size == 0:
         raise ValueError("No se pudieron extraer características del audio.")
 
-    distances = compute_matching_distances(model_bundle, feature_vector)
+    if not model_bundle.frequency_bands:
+        raise ValueError("El modelo cargado no contiene bandas de frecuencia.")
+
+    if is_filterbank_model:
+        sample_vector = feature_vector.astype(np.float32, copy=False)
+        distances: List[float] = []
+        for profile in model_bundle.species_profiles:
+            mean_vector = np.asarray(profile.get("mean_energy_vector", []), dtype=np.float32)
+            std_vector = np.asarray(profile.get("std_energy_vector", []), dtype=np.float32)
+            if mean_vector.size != sample_vector.size:
+                distances.append(float("inf"))
+                continue
+
+            # Primary score follows the requested algorithm: sum of absolute differences.
+            direct_score = float(np.sum(np.abs(sample_vector - mean_vector)))
+
+            # Note-aware refinement: add a tiny penalty only when the sample exits mean ± std.
+            lower = mean_vector - std_vector
+            upper = mean_vector + std_vector
+            below = np.maximum(lower - sample_vector, 0.0)
+            above = np.maximum(sample_vector - upper, 0.0)
+            interval_penalty = float(np.sum(below + above))
+
+            distances.append(direct_score + 0.05 * interval_penalty)
+    else:
+        distances = compute_matching_distances(model_bundle, feature_vector)
+
     if not distances:
         raise ValueError("El modelo no contiene perfiles para comparar.")
 
-    predicted_index = int(np.argmin(distances))
+    # Determine top-2 candidates
+    sorted_indices = np.argsort(np.asarray(distances, dtype=np.float32))
+    predicted_index = int(sorted_indices[0])
+    second_index = int(sorted_indices[1]) if len(sorted_indices) > 1 else None
     predicted_profile = model_bundle.species_profiles[predicted_index]
     predicted_label = str(predicted_profile.get("species_key", ""))
     best_distance = float(distances[predicted_index])
-    sorted_distances = sorted(distances)
-    second_best_distance = float(sorted_distances[1]) if len(sorted_distances) > 1 else float("inf")
+    second_best_distance = float(distances[second_index]) if second_index is not None else float("inf")
     threshold = derive_rejection_threshold(predicted_profile)
     ambiguity_margin = float(model_bundle.model.get("matching", {}).get("ambiguity_margin", 0.05))
     confidence = distances_to_confidence(distances, float(model_bundle.model.get("matching", {}).get("temperature", 0.35)))
 
-    rejected = best_distance > threshold or (second_best_distance - best_distance) <= max(ambiguity_margin * max(threshold, 1e-6), 0.01)
+    # Basic rejection check
+    ambig_limit = max(ambiguity_margin * max(threshold, 1e-6), 0.01)
+    rejected = best_distance > threshold
     rejection_reason = None
-    if rejected:
-        if best_distance > threshold:
+
+    # If within ambiguity margin, attempt a lightweight tie-breaker using spectral centroid
+    if not rejected and second_index is not None and (second_best_distance - best_distance) <= ambig_limit:
+        # compute sample centroid
+        sample_centroid = spectral_centroid(freqs, magnitude)
+        # compute centroid per profile using mean_magnitude_vector if available, else fallback to band centers
+        def profile_centroid(profile: Dict[str, Any]) -> float:
+            mean_mag = np.asarray(profile.get("mean_magnitude_vector", []), dtype=np.float32)
+            if mean_mag.size and np.sum(mean_mag) > 0:
+                centers = np.asarray(model_bundle.model.get("feature_summary", {}).get("band_centers_hz", []), dtype=np.float32)
+                if centers.size == mean_mag.size:
+                    return float(np.sum(centers * mean_mag) / np.sum(mean_mag))
+            prof_vec = np.asarray(profile.get("profile_vector", []), dtype=np.float32)
+            if prof_vec.size:
+                idx = int(np.argmax(prof_vec))
+                bands = model_bundle.frequency_bands
+                low, high = bands[idx]
+                return float((low + high) / 2.0)
+            return 0.0
+
+        pred_centroid = profile_centroid(predicted_profile)
+        second_profile = model_bundle.species_profiles[second_index]
+        second_centroid = profile_centroid(second_profile)
+
+        d_pred = abs(sample_centroid - pred_centroid)
+        d_second = abs(sample_centroid - second_centroid)
+        logger.debug("Top-2 distances: best=%.6f second=%.6f; centroid diffs: pred=%.2f vs second=%.2f (sample=%.2f)", best_distance, second_best_distance, d_pred, d_second, sample_centroid)
+
+        # If centroid prefers the second candidate by a meaningful margin, swap
+        if d_second + 1e-6 < d_pred:
+            predicted_index = second_index
+            predicted_profile = second_profile
+            predicted_label = str(predicted_profile.get("species_key", ""))
+            best_distance = float(distances[predicted_index])
+
+    if not rejected:
+        rejected = best_distance > threshold
+        if rejected:
             rejection_reason = "Fuera de umbral"
-        else:
-            rejection_reason = "Muestra ambigua"
+    else:
+        rejection_reason = "Fuera de umbral"
 
     return {
         "predicted_label": None if rejected else predicted_label,
@@ -532,6 +633,7 @@ def predict_species(model_bundle: ModelBundle, audio: np.ndarray, sample_rate: i
         "threshold": threshold,
         "rejected": rejected,
         "rejection_reason": rejection_reason,
+        "model_kind": model_bundle.model_kind,
     }
 
 

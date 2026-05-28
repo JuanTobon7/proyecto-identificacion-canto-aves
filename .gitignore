@@ -2,6 +2,8 @@
 birds
 dataset_aves
 dataset_aves_soften
-
+dataset_aves_fir
+__pycache__
 .python-version
-config/__pycache__/*
+/config/__pycache__
+/core/__pycache__
