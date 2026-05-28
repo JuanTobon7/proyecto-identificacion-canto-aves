@@ -23,7 +23,7 @@ from typing import Dict, Iterable, Tuple
 import numpy as np
 from scipy.io import wavfile
 from scipy.signal import filtfilt, firwin
-from core.fft_filter import compute_fft, apply_butterworth_filter
+from core.fft_filter import apply_butterworth_filter
 
 
 logging.basicConfig(
