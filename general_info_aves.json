@@ -1,7 +1,7 @@
 {
   "aves": [
     {
-      "nombre_comun_ingles": "Bran-colored Flycatcher",
+      "nombre_comun_ingles": "Bran-colored_Flycatcher",
       "nombre_comun_espanol": "Mosquerito estriado",
       "nombre_cientifico": "Myiophobus fasciatus",
       "familia": "Tyrannidae",
@@ -34,8 +34,8 @@
         ],
         "frecuencias_Hz": {
           "rango_principal": {
-            "min": 3500,
-            "max": 7500
+            "min": 4500,
+            "max": 6500
           },
           "frecuencia_dominante": 5200,
           "notas": "Canto de frecuencia media-alta; las notas individuales son muy cortas (0.1–0.2 s)."
@@ -43,7 +43,7 @@
       }
     },
     {
-      "nombre_comun_ingles": "Chestnut-capped Warbler",
+      "nombre_comun_ingles": "Chestnut-capped_Warbler",
       "nombre_comun_espanol": "Reinita capirrufa",
       "nombre_cientifico": "Basileuterus delattrii",
       "familia": "Parulidae",
@@ -77,7 +77,7 @@
         ],
         "frecuencias_Hz": {
           "rango_principal": {
-            "min": 2800,
+            "min": 3000,
             "max": 8200
           },
           "frecuencia_dominante": 5000,
@@ -86,7 +86,7 @@
       }
     },
     {
-      "nombre_comun_ingles": "Collared Forest-Falcon",
+      "nombre_comun_ingles": "Collared_Forest-Falcon",
       "nombre_comun_espanol": "Halcón montés collarejo",
       "nombre_cientifico": "Micrastur semitorquatus",
       "familia": "Falconidae",
@@ -120,8 +120,8 @@
         ],
         "frecuencias_Hz": {
           "rango_principal": {
-            "min": 400,
-            "max": 2000
+            "min": 1000,
+            "max": 4000
           },
           "frecuencia_dominante": 850,
           "notas": "Canto de baja frecuencia, típico de ambientes boscosos cerrados. Las notas son largas (0.5–1 s)."
@@ -129,7 +129,7 @@
       }
     },
     {
-      "nombre_comun_ingles": "Golden-headed Quetzal",
+      "nombre_comun_ingles": "Golden-headed_Quetzal",
       "nombre_comun_espanol": "Quetzal cabecidorado",
       "nombre_cientifico": "Pharomachrus auriceps",
       "familia": "Trogonidae",
@@ -163,8 +163,8 @@
         ],
         "frecuencias_Hz": {
           "rango_principal": {
-            "min": 1800,
-            "max": 4500
+            "min": 400,
+            "max": 1200
           },
           "frecuencia_dominante": 3100,
           "notas": "Silbidos de frecuencia media, con estructura descendente. Notas largas (0.4–0.8 s)."
@@ -172,7 +172,7 @@
       }
     },
     {
-      "nombre_comun_ingles": "Laughing Falcon",
+      "nombre_comun_ingles": "Laughing_Falcon",
       "nombre_comun_espanol": "Halcón reidor",
       "nombre_cientifico": "Herpetotheres cachinnans",
       "familia": "Falconidae",
@@ -206,8 +206,8 @@
         ],
         "frecuencias_Hz": {
           "rango_principal": {
-            "min": 800,
-            "max": 3500
+            "min": 500,
+            "max": 1500
           },
           "frecuencia_dominante": 2000,
           "notas": "Canto de frecuencia media, con armónicos que le dan calidad de risa. Cada nota dura 0.3–0.5 s."
@@ -215,7 +215,7 @@
       }
     },
     {
-      "nombre_comun_ingles": "Rufous-browed Peppershrike",
+      "nombre_comun_ingles": "Rufous-browed_Peppershrike",
       "nombre_comun_espanol": "Vireo cejirrufo",
       "nombre_cientifico": "Cyclarhis gujanensis",
       "familia": "Vireonidae",
@@ -249,8 +249,8 @@
         ],
         "frecuencias_Hz": {
           "rango_principal": {
-            "min": 1800,
-            "max": 5500
+            "min": 2000,
+            "max": 4500
           },
           "frecuencia_dominante": 3500,
           "notas": "Canto de frecuencia media, con notas claras y bien moduladas. Frecuencia dominante en torno a 3–4 kHz."
@@ -258,7 +258,7 @@
       }
     },
     {
-      "nombre_comun_ingles": "Scaly-naped Amazon",
+      "nombre_comun_ingles": "Scaly-naped_Amazon",
       "nombre_comun_espanol": "Loro mercenario",
       "nombre_cientifico": "Amazona mercenarius",
       "familia": "Psittacidae",
@@ -294,7 +294,7 @@
         "frecuencias_Hz": {
           "rango_principal": {
             "min": 2000,
-            "max": 7000
+            "max": 6000
           },
           "frecuencia_dominante": 4500,
           "notas": "Vocalizaciones de frecuencia media a alta, muy ásperas. En un rango de 2–7 kHz con picos armónicos."
@@ -302,7 +302,7 @@
       }
     },
     {
-      "nombre_comun_ingles": "Southern Lapwing",
+      "nombre_comun_ingles": "Southern_Lapwing",
       "nombre_comun_espanol": "Tero común",
       "nombre_cientifico": "Vanellus chilensis",
       "familia": "Charadriidae",
@@ -347,7 +347,7 @@
       }
     },
     {
-      "nombre_comun_ingles": "Tropical Screech-Owl",
+      "nombre_comun_ingles": "Tropical_Screech-Owl",
       "nombre_comun_espanol": "Autillo tropical",
       "nombre_cientifico": "Megascops choliba",
       "familia": "Strigidae",
@@ -382,8 +382,8 @@
         ],
         "frecuencias_Hz": {
           "rango_principal": {
-            "min": 600,
-            "max": 2500
+            "min": 500,
+            "max": 1800
           },
           "frecuencia_dominante": 1200,
           "notas": "Canto de baja frecuencia, típico de búhos. Frecuencia dominante alrededor de 1.2 kHz, con notas largas (0.5–1 s) y modulación descendente."

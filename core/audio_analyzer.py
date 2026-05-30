@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from typing import Optional
 from config.routes_path import RoutesPath
@@ -8,11 +9,15 @@ from core.remove_trashs_audios import RemoveTrashAudios
 from core.models_managment import ModelsManagement
 from core.dto.audio_stats import AudioStats
 from config.frecuency_bands import FrequencyBands
-from core.train_butterworth import TrainModelButterworth
+from core.butterworth_controller import ButterworthController
 from core.maths.filter_butterworth import FilterButterworth
+from core.maths.energy_vector import EnergyVector
+from core.maths.statistics import Statistics
 
 import numpy as np
 import soundfile as sf
+
+from core.repo.birds_repo import BirdRepository
 
 class AudioAnalyzer:
     """
@@ -52,7 +57,8 @@ class AudioAnalyzer:
         self.min_duration_sec = min_duration_sec
         self._converter = AudioConverter()
         self._fft = FFTProcessor()
- 
+        self.models_manage = ModelsManagement(base_dir=models_dir)
+        self.bird_repo = BirdRepository(env='training')
         self.trash = RemoveTrashAudios(json_path=trash_json)
         self.models = ModelsManagement(base_dir=models_dir)
  
@@ -78,19 +84,16 @@ class AudioAnalyzer:
         print(f"  Umbral outlier: ±{self.std_threshold}σ")
         print(f"{'='*60}\n")
  
-        audio_files = self._discover_files()
-        if not audio_files:
-            print("[WARN] No se encontraron archivos de audio.")
+        if self.verify_normalized_audios():
             return []
- 
-        print(f"Archivos encontrados: {len(audio_files)}\n")
- 
         # Paso 1: análisis individual
+        audio_files = self._discover_files()
         for fpath in audio_files:
             stats = self._analyze_file(fpath)
             self._stats.append(stats)
-            self._print_file_summary(stats)
- 
+
+        print(f"\nAnálisis individual completado. Archivos analizados: {len(self._stats)}")
+        
         # Paso 2: detección de outliers corpus-level
         self._detect_outliers()
  
@@ -101,30 +104,25 @@ class AudioAnalyzer:
                 reasons = "; ".join(stats.outlier_reasons)
                 self.trash.add(stats.file_path, reason=reasons)
                 outlier_count += 1
- 
-        # Paso 4: entrenar y guardar modelo Butterworth
-        self._train_and_save_model()
+
+        print("PASO 4 APLICAR FILTRO BUTTERWORTH A LOS AUDIOS LIMPIOS...")
+        
+        # Paso 4: suavizar_audio
+        self.soft_audio()
  
         # Resumen final
         self._print_corpus_summary(outlier_count)
  
         return [s.to_dict() for s in self._stats]
  
-    # ------------------------------------------------------------------
-    # Descubrimiento de archivos
-    # ------------------------------------------------------------------
- 
     def _discover_files(self) -> list[Path]:
-        extensions = {".wav", ".flac", ".mp3", ".ogg", ".aiff", ".aif"}
-        if not self.normalized_dir.exists():
-            raise FileNotFoundError(
-                f"Directorio no encontrado: {self.normalized_dir}"
-            )
-        files = sorted(
-            p for p in self.normalized_dir.rglob("*")
-            if p.suffix.lower() in extensions
-        )
-        return files
+        """Busca archivos de audio en la carpeta normalizada."""
+        audio_files = []
+        for especie, paths in self.bird_repo.get_audios_by_species().items():
+            audio_files.extend(paths)
+        
+        print(f"Archivos de audio encontrados: {len(audio_files)}")
+        return audio_files
  
     # ------------------------------------------------------------------
     # Análisis de un único archivo
@@ -245,11 +243,6 @@ class AudioAnalyzer:
             sigma = float(np.std(values))
             corpus_stats[metric] = (mu, sigma)
  
-        print("\n--- Distribución del corpus ---")
-        for metric, (mu, sigma) in corpus_stats.items():
-            print(f"  {metric:30s}  μ={mu:.4f}  σ={sigma:.4f}")
-        print()
- 
         for stats in self._stats:
             if stats.is_outlier:
                 continue
@@ -264,77 +257,165 @@ class AudioAnalyzer:
                         f"{metric}={value:.4f} (z={z:.2f}, μ={mu:.4f}, σ={sigma:.4f})"
                     )
  
+    def _create_output_dir_if_has_audios(
+        self,
+        especie: str,
+        audio_paths: list
+    ) -> Path | None:
+        """
+        Crea el directorio de salida solo si la especie
+        tiene audios asociados.
+
+        Returns:
+            Path | None: ruta creada o None si no hay audios.
+        """
+
+        if not audio_paths:
+            print(
+                f"[INFO] La especie '{especie}' "
+                "no tiene audios. Se omite carpeta."
+            )
+            return None
+
+        output_dir = (
+            Path(RoutesPath.PROCESSED_AUDIOS)
+            / especie
+        )
+
+        output_dir.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+        return output_dir
+ 
     # ------------------------------------------------------------------
     # Entrenamiento y persistencia del modelo
     # ------------------------------------------------------------------
  
-    def _train_and_save_model(self) -> None:
-        """Entrena un FilterButterworth sobre el corpus y lo guarda."""
-        trainer = TrainModelButterworth(
-            cutoff_freq=self.butterworth_cutoff_hz,
-            order=self.butterworth_order,
-        )
- 
-        # Para entrenar necesitamos al menos una señal representativa.
-        # Usamos el audio "mediano" (por RMS) del corpus limpio.
-        clean_stats = [s for s in self._stats if not s.is_outlier]
-        representative_signal: Optional[np.ndarray] = None
- 
-        if clean_stats:
-            median_rms = np.median([s.amp_rms for s in clean_stats])
-            best = min(clean_stats, key=lambda s: abs(s.amp_rms - median_rms))
-            try:
-                audio_raw, sr = sf.read(best.file_path, always_2d=False)
-                representative_signal = self._converter.to_mono_float32(audio_raw)
-                representative_sr = sr
-            except Exception:
-                representative_sr = 16000
-        else:
-            representative_sr = 16000
- 
-        filter_model: FilterButterworth = trainer.train(
-            signal=representative_signal
-            if representative_signal is not None
-            else np.zeros(16000, dtype=np.float32),
-            sr=representative_sr,
-        )
- 
-        model_name = (
-            f"butterworth_lp_"
-            f"order{self.butterworth_order}_"
-            f"cutoff{int(self.butterworth_cutoff_hz)}hz"
-        )
- 
-        saved_path = self.models.save(
-            name=model_name,
-            model=filter_model,
-            metadata={
-                "type": "FilterButterworth",
-                "order": self.butterworth_order,
-                "cutoff_freq_hz": self.butterworth_cutoff_hz,
-                "trained_on": len(clean_stats),
-                "corpus_dir": str(self.normalized_dir),
-            },
-            overwrite=True,
-        )
-        print(f"\n✓ Modelo guardado en: {saved_path}")
- 
-    # ------------------------------------------------------------------
-    # Salida por consola
-    # ------------------------------------------------------------------
- 
-    def _print_file_summary(self, stats: AudioStats) -> None:
-        status = "⚠ OUTLIER" if stats.is_outlier else "✓"
+    def soft_audio(self) -> None:
+        """
+        Process the audios normalized to apply
+        a butterworth filter for each.
+        """
+
         print(
-            f"  [{status}] {stats.file_name:<35s} "
-            f"dur={stats.duration_sec:.2f}s  "
-            f"rms={stats.amp_rms:.4f}  "
-            f"silence={stats.silence_ratio:.2%}  "
-            f"centroid={stats.spectral_centroid:.0f}Hz"
+            "\nObteniendo audios limpios "
+            "para aplicar filtro Butterworth..."
         )
-        if stats.outlier_reasons:
-            for reason in stats.outlier_reasons:
-                print(f"           → {reason}")
+
+        audio_paths_by_especie = (
+            self.bird_repo.get_audios_by_species()
+        )
+
+        print(
+            f"Carpetas encontrados: "
+            f"{len(audio_paths_by_especie)}"
+        )
+
+        if not audio_paths_by_especie:
+            print(
+                "[WARN] No se encontraron "
+                "archivos de audio para entrenar "
+                "el modelo."
+            )
+            return
+    
+        print("PASO 5 APLICAR FILTRO BUTTERWORTH A LOS AUDIOS LIMPIOS...")
+        for especie, audio_paths in (
+            audio_paths_by_especie.items()
+        ):
+
+            # Crear carpeta SOLO si hay audios
+            output_dir = (
+                self._create_output_dir_if_has_audios(
+                    especie,
+                    audio_paths
+                )
+            )
+
+            if output_dir is None:
+                continue
+
+            bird = self.bird_repo.get_by_species(
+                especie
+            )
+            print(f"\nProcesando especie: {especie}")
+            print()
+            print(bird.__str__())
+            print()
+            for fpath in audio_paths:
+
+                try:
+                    # Leer audio
+                    audio_raw, sr = sf.read(
+                        str(fpath),
+                        always_2d=False
+                    )
+
+                    # Convertir a mono float32
+                    y = (
+                        self._converter
+                        .to_mono_float32(
+                            audio_raw
+                        )
+                    )
+
+                    # Obtener rango frecuencias
+                    freqs = (
+                        bird.vocalizaciones
+                        .frecuencias_hz
+                        .rango_principal
+                    )
+
+                    # Crear filtro
+                    butterworth = (
+                        ButterworthController(
+                            order=(
+                                self
+                                .butterworth_order
+                            ),
+                            filter_type="band",
+                            high_freq=freqs.max,
+                            low_freq=freqs.min,
+                        )
+                    )
+                    
+                    # construir filtro
+                    filter_model = (
+                        butterworth.build(
+                            signal=y,
+                            sr=sr
+                        )
+                    )
+                    params = butterworth.last_params
+
+                    y_filtered = (
+                        filter_model.apply_bandpass(
+                            signal=y,
+                            sr=sr,
+                            low_freq=params.low_freq,
+                            high_freq=params.high_freq
+                        )
+                    )
+                    
+                    output_path = (
+                        output_dir
+                        / fpath.name
+                    )
+
+                    # Guardar audio
+                    sf.write(
+                        str(output_path),
+                        y_filtered,
+                        sr
+                    )
+
+                except Exception as exc:
+                    print(
+                        f"  [ERROR] No se pudo procesar {fpath.name}: {exc}"
+                    )
+                    continue    
  
     def _print_corpus_summary(self, outlier_count: int) -> None:
         total = len(self._stats)
@@ -351,6 +432,34 @@ class AudioAnalyzer:
                 f"    analyzer.trash.delete_marked()              # borrar"
             )
         print(f"{'='*60}\n")
+ 
+    def verify_normalized_audios(self) -> bool:
+        """_summary_
+            Verify if the normalized was made before, if not, return True, else False
+            if it´s false it means that the audios are already normalized and we can proceed to the next step of the pipeline
+            if it´s true it means that the audios are not normalized and we need to normalize them before proceeding to the next step of the pipeline
+        Returns:
+            bool: veredict to proceed with the next step of the pipeline or not
+        """
+        
+        audio_files = self._discover_files()
+        if not audio_files:
+            print("[WARN] No se encontraron archivos de audio.")
+            return False
+        
+        for fpath in audio_files:
+            try:
+                audio_raw, sr = sf.read(str(fpath), always_2d=False)
+                y = self._converter.to_mono_float32(audio_raw)
+                if np.max(np.abs(y)) > 0.9999:
+                    return True
+            except Exception as exc:
+                print(f"  [ERROR] No se pudo leer {fpath.name}: {exc}")
+                continue
+        
+        print("Todos los archivos parecen estar normalizados.")
+        return False
+        
  
     # ------------------------------------------------------------------
     # Helpers

@@ -2,7 +2,7 @@
 birds
 dataset_aves
 dataset_aves_normalized
-dataset_aves_soften
+dataset_aves_processed
 dataset_aves_fir
 __pycache__
 .python-version

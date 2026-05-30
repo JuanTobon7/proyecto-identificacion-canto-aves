@@ -52,60 +52,74 @@ class ModelsManagement:
     def save(
         self,
         name: str,
-        model: Any,
+        data: dict,
         metadata: dict | None = None,
         overwrite: bool = True,
     ) -> Path:
         """
-        Serializa *model* con pickle y registra la entrada en el índice.
+        Guarda un artefacto JSON (no ML, no pickle).
 
         Parámetros
         ----------
-        name      : identificador único del modelo (sin extensión).
-        model     : objeto serializable.
-        metadata  : dict con información adicional (hiperparámetros, etc.).
-        overwrite : si False lanza ValueError cuando el nombre ya existe.
+        name      : identificador único.
+        data      : dict serializable a JSON.
+        metadata  : información extra.
+        overwrite : sobreescribir si existe.
 
-        Retorna la ruta del archivo generado.
+        Retorna
+        -------
+        Ruta del archivo generado.
         """
+
         if not overwrite and name in self._index:
             raise ValueError(
-                f"El modelo '{name}' ya existe. "
+                f"El recurso '{name}' ya existe. "
                 "Usa overwrite=True para sobreescribirlo."
             )
 
-        file_path = self.base_dir / f"{name}.pkl"
-        with open(file_path, "wb") as fh:
-            pickle.dump(model, fh, protocol=pickle.HIGHEST_PROTOCOL)
+        file_path = self.base_dir / f"{name}.json"
+
+        with open(file_path, "w", encoding="utf-8") as fh:
+            json.dump(
+                data,
+                fh,
+                indent=2,
+                ensure_ascii=False
+            )
 
         checksum = self._md5(file_path)
+
         self._index[name] = {
             "name": name,
             "file": str(file_path),
+            "type": "json",
             "saved_at": datetime.now(timezone.utc).isoformat(),
             "checksum_md5": checksum,
             "metadata": metadata or {},
         }
+
         self._save_index()
         return file_path
 
-    def get(self, name: str) -> Any:
+    def get_json(self, name: str) -> dict:
         """
-        Carga y retorna el modelo identificado por *name*.
-        Lanza KeyError si no existe y FileNotFoundError si el pkl fue borrado.
+        Carga un artefacto JSON.
         """
-        if name not in self._index:
-            raise KeyError(f"Modelo '{name}' no encontrado en el índice.")
 
-        file_path = Path(self._index[name]["file"])
-        if not file_path.exists():
-            raise FileNotFoundError(
-                f"El archivo '{file_path}' no existe en disco. "
-                "Puede haber sido borrado manualmente."
+        if name not in self._index:
+            raise KeyError(
+                f"Recurso '{name}' no encontrado."
             )
 
-        with open(file_path, "rb") as fh:
-            return pickle.load(fh)
+        file_path = Path(self._index[name]["file"])
+
+        if not file_path.exists():
+            raise FileNotFoundError(
+                f"El archivo '{file_path}' no existe."
+            )
+
+        with open(file_path, "r", encoding="utf-8") as fh:
+            return json.load(fh)
 
     def delete(self, name: str, remove_file: bool = True) -> None:
         """

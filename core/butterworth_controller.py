@@ -5,8 +5,8 @@ from dataclasses import dataclass, asdict
 from core.audio_converter import AudioConverter
 from core.dto.buttherworth_params import ButterworthParams
 import numpy as np
-
-class TrainModelButterworth:
+from typing import Literal
+class ButterworthController:
     """
     Configura un FilterButterworth óptimo a partir de una señal representativa.
  
@@ -31,7 +31,7 @@ class TrainModelButterworth:
         self,
         cutoff_freq: Optional[float] = None,
         order: int = 4,
-        filter_type: str = "low",
+        filter_type: Literal["low", "high", "band"] = "low",
         low_freq: Optional[float] = None,
         high_freq: Optional[float] = None,
         energy_percentile: float = 95.0,
@@ -63,7 +63,7 @@ class TrainModelButterworth:
     # API pública
     # ------------------------------------------------------------------
  
-    def train(self, signal: np.ndarray, sr: int) -> FilterButterworth:
+    def build(self, signal: np.ndarray, sr: int) -> FilterButterworth:
         """
         Analiza *signal* (mono float32) y retorna un FilterButterworth
         configurado con los parámetros óptimos.
@@ -83,7 +83,7 @@ class TrainModelButterworth:
             raise ValueError("La señal está vacía.")
  
         # Asegurar mono float32
-        y = AudioConverter.to_mono_float32(signal, sr)
+        y = AudioConverter.to_mono_float32(signal)
  
         # Resolver parámetros
         if self.filter_type == "band":
@@ -100,7 +100,7 @@ class TrainModelButterworth:
             params = self.filter_butterworth._auto_detect_cutoff(y, sr)
  
         self.last_params = params
-        self._print_params(params)
+        #self._print_params(params)
  
         # Construir filtro
         self.filter_butterworth = FilterButterworth(order=params.order)
