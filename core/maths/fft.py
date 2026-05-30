@@ -62,3 +62,14 @@ class FFTProcessor:
             energies.append(energy)
 
         return np.array(energies, dtype=np.float32)
+    
+    @staticmethod
+    def build_subbands(low: float, high: float, n: int) -> list[tuple[float, float]]:
+        """
+        Divide el rango [low, high] en n sub-bandas de igual ancho.
+ 
+        Usado durante la predicción para construir el banco de filtros
+        que coincide con el profile_vector del modelo entrenado.
+        """
+        edges = np.linspace(low, high, n + 1)
+        return [(float(edges[i]), float(edges[i + 1])) for i in range(n)]

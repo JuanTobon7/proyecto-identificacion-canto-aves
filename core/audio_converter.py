@@ -6,12 +6,6 @@ class AudioConverter:
         self.sample_rate = sample_rate,
         self.base_to_train = RoutesPath.BANK_AUDIOS_NORMALIZED
         
-
-    def process(self, audio_data):
-        # Placeholder for audio processing logic
-        # This could include normalization, noise reduction, etc.
-        return audio_data
-    
     def convert_to_mono(self, audio_data):
         if audio_data.ndim > 1:
             return np.mean(audio_data, axis=1)
@@ -38,3 +32,5 @@ class AudioConverter:
             return (mono_audio * scale).clip(info.min, info.max).astype(original_dtype)
         else:
             return mono_audio.astype(original_dtype)
+        
+    
