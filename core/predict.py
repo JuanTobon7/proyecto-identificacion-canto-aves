@@ -3,6 +3,7 @@ from core.maths.fft import FFTProcessor
 from core.maths.statistics import Statistics
 from core.maths.energy_vector import EnergyVector
 from core.maths.filter_butterworth import FilterButterworth
+from core.maths.filter_fir import FilterFir
 from core.audio_converter import AudioConverter
 
 import numpy as np
@@ -36,8 +37,11 @@ class Predict:
 
         # Carga la colección de modelos desde disco
         collection = self.models_mgmt.get_json(model_name)
-        self._sample_rate: int = collection["sample_rate"]
+        self._collection_kind: str = str(collection.get("kind", ""))
         self._models: list[dict] = collection["models"]
+        self._sample_rate: int = int(
+            collection.get("sample_rate") or self._infer_sample_rate(self._models)
+        )
 
     # ------------------------------------------------------------------
     # API pública
@@ -109,16 +113,14 @@ class Predict:
         Calcula un puntaje combinado (coseno + z-score) entre el audio
         y el perfil espectral del modelo.
         """
-        params = model["params"]
-        low_freq: float = params["low_freq"]
-        high_freq: float = params["high_freq"]
+        low_freq, high_freq = self._extract_band(model)
         profile: np.ndarray = np.array(model["profile_vector"], dtype=np.float64)
         std_vec: np.ndarray = np.array(model["std_energy_vector"], dtype=np.float64)
         n_bands: int = len(profile)
 
         # 1. Filtrar señal con el pasa-banda del modelo
         try:
-            filtered = self.butterworth.apply_bandpass(audio, sr, low_freq, high_freq)
+            filtered = self._apply_model_filter(audio, sr, model, low_freq, high_freq)
         except ValueError:
             # Si la señal es muy corta o los parámetros inválidos, score mínimo
             return -np.inf
@@ -149,6 +151,41 @@ class Predict:
         """
         edges = np.linspace(low, high, n + 1)
         return [(edges[i], edges[i + 1]) for i in range(n)]
+
+    @staticmethod
+    def _infer_sample_rate(models: list[dict]) -> int:
+        for model in models:
+            params = model.get("params") or {}
+            if params.get("sample_rate"):
+                return int(params["sample_rate"])
+            if model.get("sr"):
+                return int(model["sr"])
+        return 0
+
+    @staticmethod
+    def _extract_band(model: dict) -> tuple[float, float]:
+        if model.get("type") == "fir":
+            return float(model["low_freq"]), float(model["high_freq"])
+        params = model["params"]
+        return float(params["low_freq"]), float(params["high_freq"])
+
+    def _apply_model_filter(
+        self,
+        audio: np.ndarray,
+        sr: int,
+        model: dict,
+        low_freq: float,
+        high_freq: float,
+    ) -> np.ndarray:
+        if model.get("type") == "fir":
+            coeffs = np.array(model.get("coeffs", []), dtype=np.float64)
+            if coeffs.size == 0:
+                raise ValueError("El modelo FIR no tiene coeficientes.")
+            fir = FilterFir(sr=sr, num_taps=len(coeffs))
+            fir.coeffs = coeffs
+            return fir.process_signal_fast(audio)
+
+        return self.butterworth.apply_bandpass(audio, sr, low_freq, high_freq)
 
     @staticmethod
     def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
