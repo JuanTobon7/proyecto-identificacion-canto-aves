@@ -1,220 +1,670 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Explicacion del pipeline de clasificacion de aves</title>
-  <!-- KaTeX para renderizar las fórmulas matemáticas -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true},{left: '$', right: '$', display: false}]});"></script>
+  <title>Explicación académica del análisis de la señal</title>
   <style>
     :root {
-      --bg: #0b1020;
-      --card: #121a31;
-      --text: #e8eefc;
-      --muted: #a8b6d9;
-      --accent: #54c2ff;
-      --ok: #4ade80;
-      --warn: #f59e0b;
+      --bg: #f5f7fb;
+      --panel: rgba(255, 255, 255, 0.94);
+      --panel-2: rgba(255, 255, 255, 0.98);
+      --line: rgba(15, 23, 42, 0.10);
+      --text: #0f172a;
+      --muted: #475569;
+      --accent: #0f766e;
+      --accent-2: #5b21b6;
+      --accent-3: #166534;
+      --warning: #b45309;
+      --shadow: 0 18px 45px rgba(15, 23, 42, 0.10);
     }
+
     * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
     body {
       margin: 0;
-      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-      background: radial-gradient(circle at 20% 0%, #182447, var(--bg));
+      font-family: Inter, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(15, 118, 110, 0.10), transparent 28%),
+        radial-gradient(circle at top right, rgba(91, 33, 182, 0.08), transparent 24%),
+        linear-gradient(180deg, #f8fbff 0%, #f2f6fb 48%, #eef3f9 100%);
       color: var(--text);
-      line-height: 1.55;
+      line-height: 1.65;
     }
+
     .wrap {
-      max-width: 980px;
-      margin: 28px auto;
-      padding: 0 18px 40px;
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 40px 20px 56px;
     }
-    .card {
-      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 14px;
-      padding: 18px 20px;
+
+    .hero {
+      padding: 38px 32px;
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(120deg, rgba(15, 118, 110, 0.08), transparent 35%, rgba(91, 33, 182, 0.06));
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      gap: 10px;
+      align-items: center;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(15, 118, 110, 0.12);
+      font-size: 0.88rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3 {
+      margin: 0;
+      line-height: 1.2;
+    }
+
+    h1 {
+      margin-top: 18px;
+      font-size: clamp(2rem, 4vw, 3.4rem);
+      max-width: 14ch;
+    }
+
+    .lead {
+      margin-top: 18px;
+      max-width: 900px;
+      color: var(--muted);
+      font-size: 1.05rem;
+    }
+
+    .meta {
+      margin-top: 26px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .meta .chip {
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(15, 23, 42, 0.04);
+      border: 1px solid var(--line);
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+
+    .section {
+      margin-top: 22px;
+      padding: 28px;
+      border-radius: 24px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+
+    .section + .section {
+      margin-top: 18px;
+    }
+
+    .section h2 {
+      font-size: 1.6rem;
       margin-bottom: 14px;
     }
-    h1, h2 { margin: 0 0 10px; }
-    h1 { font-size: 1.7rem; color: var(--accent); }
-    h2 { font-size: 1.2rem; color: #b9d5ff; }
-    p { margin: 10px 0; }
-    ul { margin: 8px 0 8px 18px; }
-    code {
-      background: rgba(255,255,255,0.07);
-      padding: 2px 6px;
-      border-radius: 6px;
-      color: #dff3ff;
-      font-family: Consolas, "Courier New", monospace;
-      font-size: 0.93rem;
+
+    .section p, .section li {
+      color: var(--text);
     }
-    .ok { color: var(--ok); }
-    .warn { color: var(--warn); }
-    .small { color: var(--muted); font-size: 0.95rem; }
+
+    .muted { color: var(--muted); }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .step {
+      padding: 18px;
+      border-radius: 18px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      min-height: 150px;
+      position: relative;
+    }
+
+    .step .num {
+      display: inline-flex;
+      width: 34px;
+      height: 34px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: rgba(15, 118, 110, 0.12);
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .step h3 {
+      font-size: 1.02rem;
+      margin-bottom: 10px;
+    }
+
+    .step p {
+      font-size: 0.95rem;
+      color: var(--muted);
+    }
+
+    .math-box {
+      margin-top: 14px;
+      padding: 18px;
+      background: rgba(248, 250, 252, 0.98);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 18px;
+      overflow-x: auto;
+    }
+
+    .equation {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: center;
+      text-align: center;
+      font-family: "Cambria Math", "STIX Two Math", "Times New Roman", serif;
+      font-size: 1.12rem;
+      color: #0f172a;
+    }
+
+    .eq-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+      line-height: 1.35;
+    }
+
+    .eq-var {
+      font-style: italic;
+      color: #0f172a;
+    }
+
+    .eq-sub {
+      vertical-align: sub;
+      font-size: 0.78em;
+      line-height: 0;
+    }
+
+    .eq-sup {
+      vertical-align: super;
+      font-size: 0.78em;
+      line-height: 0;
+    }
+
+    .eq-frac {
+      display: inline-grid;
+      grid-template-rows: auto auto auto;
+      align-items: center;
+      justify-items: center;
+      padding: 0 2px;
+    }
+
+    .eq-frac .num,
+    .eq-frac .den {
+      padding: 0 6px;
+      white-space: nowrap;
+    }
+
+    .eq-frac .bar {
+      width: 100%;
+      border-top: 1.6px solid #0f172a;
+      margin: 2px 0;
+    }
+
+    .eq-note {
+      font-size: 0.92rem;
+      color: var(--muted);
+      margin-top: -2px;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      padding: 18px;
+      border-radius: 18px;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      background: rgba(255, 255, 255, 0.96);
+    }
+
+    .card h3 {
+      margin-bottom: 8px;
+      font-size: 1.05rem;
+    }
+
+    .card p, .card li {
+      color: var(--muted);
+      font-size: 0.96rem;
+    }
+
+    ul {
+      margin: 10px 0 0 18px;
+      padding: 0;
+    }
+
+    .note {
+      margin-top: 14px;
+      padding: 16px 18px;
+      border-left: 4px solid var(--warning);
+      border-radius: 14px;
+      background: rgba(245, 158, 11, 0.10);
+      color: #431407;
+    }
+
+    .footer {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 0.92rem;
+      text-align: center;
+    }
+
+    @media (max-width: 640px) {
+      .wrap { padding: 20px 14px 40px; }
+      .hero, .section { padding: 22px 18px; border-radius: 20px; }
+      .flow { grid-template-columns: 1fr; }
+      .step { min-height: auto; }
+    }
   </style>
 </head>
 <body>
-  <main class="wrap">
-    <section class="card">
-      <h1>Como se evaluan los perfiles y las frecuencias</h1>
+  <div class="wrap">
+    <header class="hero">
+      <div class="eyebrow">Análisis de señal · DSP académico</div>
+      <h1>Explicación del flujograma de análisis de la señal</h1>
+      <p class="lead">
+        Este documento describe, con enfoque académico, el pipeline de análisis utilizado en el proyecto de clasificación de cantos de aves.
+        El objetivo es convertir una señal de audio cruda en una representación numérica estable, interpretable y comparable entre especies.
+      </p>
+      <div class="meta">
+        <div class="chip">Dominio: señal discreta en tiempo</div>
+        <div class="chip">Procesamiento: mono, resample, filtro, FFT</div>
+        <div class="chip">Representación: energía por subbanda</div>
+        <div class="chip">Decisión: similitud con perfiles aprendidos</div>
+      </div>
+    </header>
+
+    <section class="section">
+      <h2>1. Flujograma general</h2>
+      <p class="muted">
+        El proceso puede leerse como una cadena de transformación: desde el audio observado hasta la predicción de la especie.
+        Cada bloque del flujograma cumple una función específica dentro del análisis de señales digitales.
+      </p>
+      <div class="flow" aria-label="Flujograma del análisis de la señal">
+        <div class="step">
+          <div class="num">1</div>
+          <h3>Adquisición</h3>
+          <p>Se obtiene el audio desde archivo WAV o micrófono. La señal se interpreta como una secuencia discreta de muestras <span class="eq-var">x[n]</span>.</p>
+        </div>
+        <div class="step">
+          <div class="num">2</div>
+          <h3>Normalización</h3>
+          <p>Se convierte a mono, se remuestrea si es necesario y se escala a float32 para evitar errores de cuantización y clipping.</p>
+        </div>
+        <div class="step">
+          <div class="num">3</div>
+          <h3>Filtrado</h3>
+          <p>Se aplica un filtro Butterworth o FIR para aislar la banda útil de la vocalización y reducir energía no deseada.</p>
+        </div>
+        <div class="step">
+          <div class="num">4</div>
+          <h3>Transformada FFT</h3>
+          <p>La señal filtrada pasa al dominio frecuencial mediante la FFT para estudiar la distribución espectral de su energía.</p>
+        </div>
+        <div class="step">
+          <div class="num">5</div>
+          <h3>Subbandas</h3>
+          <p>Se divide la banda principal en subbandas uniformes y se calcula la energía en cada una de ellas.</p>
+        </div>
+        <div class="step">
+          <div class="num">6</div>
+          <h3>Clasificación</h3>
+          <p>El vector de energías se compara con perfiles aprendidos para asignar la especie con mayor similitud.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>2. Fundamentación teórica</h2>
+      <div class="two-col">
+        <div class="card">
+          <h3>2.1 Señal discreta y muestreo</h3>
+          <p>
+            En procesamiento digital, una señal de audio se modela como una sucesión temporal discreta <span class="eq-var">x[n]</span>, obtenida al muestrear la señal continua.
+            Si el muestreo respeta el criterio de Nyquist, la información espectral relevante se preserva dentro del ancho de banda analizado.
+          </p>
+          <div class="math-box">
+            <div class="equation">
+              <div class="eq-row">
+                <span class="eq-var">x[n]</span>
+                <span>=</span>
+                <span class="eq-var">x</span><span>(nT</span><span class="eq-sub">s</span><span>)</span>
+              </div>
+              <div class="eq-row">
+                <span class="eq-var">f</span><span class="eq-sub">s</span>
+                <span>=</span>
+                <span class="eq-frac">
+                  <span class="num">1</span>
+                  <span class="bar"></span>
+                  <span class="den">T<span class="eq-sub">s</span></span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>2.2 Conversión a mono y remuestreo</h3>
+          <p>
+            Cuando la fuente contiene más de un canal, se promedia cada muestra para obtener una representación mono. Luego, si el audio no coincide con la frecuencia de muestreo del modelo, se remuestrea para evitar desajustes en la extracción de características.
+          </p>
+          <ul>
+            <li>Mono: reduce complejidad computacional.</li>
+            <li>Remuestreo: garantiza consistencia entre entrenamiento e inferencia.</li>
+            <li>Formato float32: preserva amplitud y evita cuantización innecesaria.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>3. Etapa de filtrado</h2>
+      <div class="two-col">
+        <div class="card">
+          <h3>3.1 Filtro Butterworth</h3>
+          <p>
+            El filtro Butterworth se utiliza cuando se busca una banda de paso suave y una respuesta monótona en magnitud. En el proyecto se implementa con secciones de segundo orden (SOS) y filtrado de fase cero con <code>sosfiltfilt</code>, lo que reduce inestabilidad numérica y evita distorsión de fase.
+          </p>
+          <div class="math-box">
+            <div class="equation">
+              <div class="eq-row">
+                <span class="eq-var">H</span><span class="eq-sub">B</span><span>(ω)</span>
+                <span>=</span>
+                <span class="eq-frac">
+                  <span class="num">1</span>
+                  <span class="bar"></span>
+                  <span class="den">√(1 + (ω / ω<span class="eq-sub">c</span>)<span class="eq-sup">2N</span>)</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>3.2 Filtro FIR</h3>
+          <p>
+            Un filtro FIR modela la salida como una convolución finita de la señal con una respuesta al impulso de longitud limitada. Su ventaja principal es la estabilidad inherente y la facilidad para controlar la forma espectral mediante la ventana de diseño.
+          </p>
+          <div class="math-box">
+            <div class="equation">
+              <div class="eq-row">
+                <span class="eq-var">y[n]</span>
+                <span>=</span>
+                <span>Σ</span>
+                <span class="eq-sub">k=0</span>
+                <span class="eq-sup">M-1</span>
+                <span class="eq-var">h[k]</span>
+                <span>·</span>
+                <span class="eq-var">x[n-k]</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="note">
+        En esta etapa se conservan las frecuencias relevantes para el canto de la especie y se atenúa el ruido fuera de banda. Esto mejora la separabilidad entre clases y estabiliza la representación espectral.
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>4. Análisis espectral con FFT</h2>
       <p>
-        Esta explicacion describe exactamente como funciona tu clasificador actual en <code>main.py</code>.
-        El flujo completo es: <strong>audio -&gt; FFT -&gt; energia por bandas -&gt; distancia a perfiles -&gt; decision con rechazo</strong>.
+        Una vez filtrada, la señal se transforma al dominio de la frecuencia mediante la FFT. En la práctica se usa la versión real de la transformada para aprovechar que el audio es una señal real.
+      </p>
+      <div class="two-col">
+        <div class="card">
+          <h3>4.1 Transformada discreta de Fourier</h3>
+          <p>
+            La DFT describe el contenido frecuencial de una secuencia finita. La FFT no cambia la matemática; solo reduce el costo computacional de su cálculo.
+          </p>
+          <div class="math-box">
+            <div class="equation">
+              <div class="eq-row">
+                <span class="eq-var">X[k]</span>
+                <span>=</span>
+                <span>Σ</span>
+                <span class="eq-sub">n=0</span>
+                <span class="eq-sup">N-1</span>
+                <span class="eq-var">x[n]</span>
+                <span>e<sup>−j 2πkn/N</sup></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>4.2 Magnitud espectral</h3>
+          <p>
+            Para analizar energía se calcula la magnitud de la FFT. Normalizar por \(N\) evita que el tamaño de la ventana altere artificialmente la escala del espectro.
+          </p>
+          <div class="math-box">
+            <div class="equation">
+              <div class="eq-row">
+                <span class="eq-var">M[k]</span>
+                <span>=</span>
+                <span class="eq-frac">
+                  <span class="num">|X[k]|</span>
+                  <span class="bar"></span>
+                  <span class="den">N</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="note">
+        En la visualización del proyecto, la magnitud se muestra en dB para enfatizar diferencias pequeñas entre bandas y hacer más legibles las zonas de mayor y menor energía.
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>5. Energía por subbanda</h2>
+      <p>
+        La banda principal de la vocalización se divide en subbandas uniformes. Sobre cada una se integra la energía espectral para formar un vector descriptivo de la señal.
+      </p>
+      <div class="two-col">
+        <div class="card">
+          <h3>5.1 Subbandas</h3>
+          <p>
+            Si el rango de interés es <span class="eq-var">[f<sub>low</sub>, f<sub>high</sub>]</span> y se desean <span class="eq-var">K</span> subbandas, el intervalo se discretiza en <span class="eq-var">K</span> segmentos de igual ancho. Cada segmento actúa como una región de análisis espectral local.
+          </p>
+          <div class="math-box">
+            <div class="equation">
+              <div class="eq-row">
+                <span>Δf</span>
+                <span>=</span>
+                <span class="eq-frac">
+                  <span class="num">f<sub>high</sub> - f<sub>low</sub></span>
+                  <span class="bar"></span>
+                  <span class="den">K</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>5.2 Energía de banda</h3>
+          <p>
+            En cada subbanda se suman los cuadrados de la magnitud espectral. Esa suma representa cuánta energía existe en esa región del espectro.
+          </p>
+          <div class="math-box">
+            <div class="equation">
+              <div class="eq-row">
+                <span class="eq-var">E</span><span class="eq-sub">i</span>
+                <span>=</span>
+                <span>Σ</span>
+                <span class="eq-sub">k ∈ B</span>
+                <span class="eq-sup">i</span>
+                <span class="eq-var">M[k]</span><span class="eq-sup">2</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-top: 16px;">
+        <h3>5.3 Vector de energía</h3>
+        <p>
+          El vector final se normaliza para que la suma total sea uno. Con ello se compara la forma relativa de la distribución energética y no la amplitud absoluta.
+        </p>
+        <div class="math-box">
+          <div class="equation">
+            <div class="eq-row">
+              <span class="eq-var">v</span><span class="eq-sub">i</span>
+              <span>=</span>
+              <span class="eq-frac">
+                <span class="num">E<sub>i</sub></span>
+                <span class="bar"></span>
+                <span class="den">Σ<sub>j=1</sub><sup>K</sup> E<sub>j</sub></span>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>6. Comparación con modelos aprendidos</h2>
+      <div class="two-col">
+        <div class="card">
+          <h3>6.1 Perfil espectral</h3>
+          <p>
+            Durante el entrenamiento, se calcula un perfil promedio por especie. Ese perfil actúa como una referencia estadística de la distribución espectral esperada para cada ave.
+          </p>
+          <ul>
+            <li><span class="eq-var">profile_vector</span>: media de los vectores de energía.</li>
+            <li><span class="eq-var">std_energy_vector</span>: dispersión por subbanda.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h3>6.2 Métricas de similitud</h3>
+          <p>
+            La inferencia compara la muestra con cada perfil mediante dos criterios: similitud coseno y cercanía por z-score. Luego se combinan con pesos fijos para obtener un puntaje final.
+          </p>
+          <div class="math-box">
+            <div class="equation">
+              <div class="eq-row">
+                <span class="eq-var">score</span>
+                <span>=</span>
+                <span class="eq-var">w</span><span class="eq-sub">1</span>
+                <span>·</span>
+                <span class="eq-var">sim</span><span class="eq-sub">cos</span><span>(v, p)</span>
+                <span>+</span>
+                <span class="eq-var">w</span><span class="eq-sub">2</span>
+                <span>·</span>
+                <span class="eq-var">sim</span><span class="eq-sub">z</span><span>(v, p, σ)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="note">
+        La especie predicha es la de mayor puntaje. Si se desea un comportamiento más conservador, se puede aplicar un umbral mínimo de confianza o una regla de rechazo.
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>7. Interpretación visual del análisis</h2>
+      <p>
+        Las gráficas del sistema muestran tres niveles de lectura: señal en el tiempo, espectro en frecuencia y distribución energética por bandas. La combinación de estas vistas permite verificar si el filtrado está aislando adecuadamente la vocalización.
+      </p>
+      <div class="two-col">
+        <div class="card">
+          <h3>Señal en el tiempo</h3>
+          <p>
+            Permite observar duración, silencios, saturación y la evolución temporal del canto. Es la primera inspección antes del análisis espectral.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Espectro en frecuencia</h3>
+          <p>
+            Muestra dónde se concentra la energía de la señal. En dB, las diferencias entre bandas quedan más visibles y facilitan la comparación entre audio original y filtrado.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Vector de energía</h3>
+          <p>
+            Resume la firma espectral de la muestra en una representación compacta apta para clasificación y comparación estadística.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>8. Consideraciones academicas y practicas</h2>
+      <div class="two-col">
+        <div class="card">
+          <h3>Ventanas y fugas espectrales</h3>
+          <p>
+            En segmentos cortos, una ventana temporal puede reducir la fuga espectral. Esto mejora la calidad de la FFT cuando el audio tiene transiciones abruptas.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Normalización</h3>
+          <p>
+            Mantener el audio en float32 y evitar conversiones prematuras a entero reduce distorsión, clipping y errores acumulados en el pipeline.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Robustez de filtrado</h3>
+          <p>
+            El uso de SOS y filtrado de fase cero es recomendable en Butterworth porque mejora estabilidad numérica y conserva mejor la forma del canto.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>9. Conclusión</h2>
+      <p>
+        El flujograma del análisis de la señal implementa una metodología clásica de procesamiento digital de audio: adquisición, normalización, filtrado, análisis en frecuencia, extracción de energía por subbanda y comparación estadística con modelos aprendidos. Esta secuencia convierte una señal acústica compleja en una representación compacta y cuantificable, adecuada para identificar especies de aves de forma reproducible.
+      </p>
+      <p class="muted">
+        Las expresiones se muestran con tipografía matemática HTML para mantener el documento autónomo, ligero y fácil de abrir en cualquier navegador.
       </p>
     </section>
 
-    <section class="card">
-      <h2>Modelos disponibles y para que sirve cada uno</h2>
-      <ul>
-        <li><strong><code>spectral_cosine</code></strong>: usa el espectro por bandas normalizado con L2 y distancia euclidiana entre vectores de plantilla. Es el modelo mas directo para comparar la <em>forma</em> espectral del audio.</li>
-        <li><strong><code>spectral_weighted</code></strong>: usa la misma base espectral, pero pondera cada banda con la desviacion estandar del entrenamiento. Sirve para dar menos peso a bandas inestables y mas peso a bandas discriminantes, aunque puede volverse sensible si hay std muy pequena.</li>
-        <li><strong><code>filterbank</code></strong>: usa energias crudas por subbanda y compara la muestra con el promedio por especie. Es el modelo mas cercano a la explicacion teorica del banco de filtros: subbandas, energia por banda y distancia entre vectores de energia.</li>
-        <li><strong><code>filterbank_fir</code></strong>: es la misma idea que <code>filterbank</code>, pero aplicado sobre audios prefiltrados con FIR para reducir ruido y concentrar la energia en la zona de interes de cada especie. Por eso suele mejorar en audios contaminados o con armónicos fuera de banda.</li>
-      </ul>
-      <p class="small">
-        En resumen: <code>spectral_cosine</code> y <code>spectral_weighted</code> comparan <em>plantillas espectrales</em>, mientras que <code>filterbank</code> y <code>filterbank_fir</code> comparan <em>vectores de energia por subbanda</em>.
-      </p>
-    </section>
-
-    <section class="card">
-      <h2>1) De donde salen los perfiles</h2>
-      <p>
-        Al cargar un modelo JSON, se leen dos cosas clave:
-      </p>
-      <ul>
-        <li><code>frequency_bands</code>: bandas de frecuencia que se usaran para extraer caracteristicas.</li>
-        <li><code>species_profiles</code>: un perfil por especie con su vector promedio y su variabilidad.</li>
-      </ul>
-      <p class="small">
-        En tu archivo <code>model_spectral_cosine.json</code>, las bandas son:
-        50-500, 500-1000, 1000-2000, 2000-4000, 4000-8000 y 8000-16000 Hz.
-      </p>
-    </section>
-
-    <section class="card">
-      <h2>2) Como se usan las frecuencias en la practica</h2>
-      <p>
-        No se usa una sola frecuencia pico. Se usa la energia dentro de cada banda.
-      </p>
-      <ul>
-        <li>Se calcula FFT del audio.</li>
-        <li>Para cada banda <code>[low_hz, high_hz)</code>, se filtran los bins de FFT dentro del rango.</li>
-        <li>Se suma <code>magnitud^2</code> dentro de esa banda.</li>
-      </ul>
-      <p>
-        El resultado es un vector de 6 componentes (una por banda). En los modelos espectrales se normaliza con L2 para comparar forma espectral y no volumen bruto; en los modelos de banco de filtros se conserva la energia cruda para respetar el umbral por banda aprendido en entrenamiento.
-      </p>
-    </section>
-
-    <section class="card">
-      <h2>3) Donde se comparan los perfiles</h2>
-      <p>
-        En la funcion de matching, se recorre cada especie y se calcula distancia entre:
-      </p>
-      <ul>
-        <li><code>vector_muestra</code>: lo que sale del audio actual.</li>
-        <li><code>profile_vector</code>: referencia promedio de la especie en el modelo.</li>
-      </ul>
-      <p>
-        En <code>spectral_cosine</code> y <code>spectral_weighted</code> la metrica principal es <strong>distancia euclidiana</strong>. Menor distancia = mejor coincidencia.
-      </p>
-      <p>
-        Si el modelo esta en modo <code>weighted</code>, antes de medir distancia se ponderan las dimensiones con <code>std_energy_vector</code> para penalizar o atenuar bandas segun variabilidad.
-      </p>
-      <p>
-        En <code>filterbank</code> y <code>filterbank_fir</code> la comparacion se hace sobre energia cruda por subbanda. Eso hace que el resultado sea mas interpretable: cada componente del vector representa cuanta energia hay en una region del espectro.
-      </p>
-    </section>
-
-    <section class="card">
-      <h2>4) Como se decide la clase final</h2>
-      <ul>
-        <li>Se toma el indice de menor distancia.</li>
-        <li>Se calcula umbral de rechazo por especie (si existe en JSON, se usa; si no, se deriva de la desviacion estandar).</li>
-        <li>Se revisa ambiguedad contra el segundo mejor match.</li>
-      </ul>
-      <p>
-        En el caso del banco de filtros, el umbral tambien se interpreta como una forma de validar si el vector de energia de la muestra cae dentro de la zona esperada para esa especie.
-      </p>
-      <p>
-        Reglas de rechazo:
-      </p>
-      <ul>
-        <li><span class="warn">Fuera de umbral</span>: si la mejor distancia es mayor que el threshold de esa especie.</li>
-        <li><span class="warn">Muestra ambigua</span>: si el mejor y segundo mejor estan demasiado cerca.</li>
-      </ul>
-      <p>
-        Si se rechaza, <code>predicted_label</code> queda en <code>None</code> y en la UI aparece "No clasificable".
-      </p>
-    </section>
-
-    <section class="card">
-      <h2>5) Tiempo real: que cambia</h2>
-      <p>
-        En vivo, el sistema toma una ventana reciente del microfono y repite el mismo pipeline de arriba.
-        Para que sea rapido, usa una ventana corta para espectro y otra para prediccion, en hilo de fondo.
-      </p>
-      <ul>
-        <li>Render rapido del espectro (sin limpiar el eje en cada frame).</li>
-        <li>Prediccion asincrona para no congelar UI.</li>
-        <li>Actualizacion de imagen/info solo cuando cambia la especie.</li>
-      </ul>
-      <p class="ok">
-        Con esto, el criterio de clasificacion es el mismo en archivo y en tiempo real; solo cambia la forma de leer la ventana de audio.
-      </p>
-    </section>
-    <section class="card">
-      <h2>Matemáticas (formulación)</h2>
-      <p>Formulamos el pipeline de forma compacta:</p>
-      <ul>
-      <li>Transformada: $X(f) =$ FFT(windowed\, audio), magnitud $|X(f)|$.</li>
-      <li>Energia por banda $b=[f_{low},f_{high})$:</li>
-      </ul>
-      <p>En notación matemática:</p>
-      <p>$$E_b \,=\, \sum_{f\in [f_{low},f_{high})} |X(f)|^2$$</p>
-      <p>Si definimos el vector de energías por bandas como $\mathbf{v} = [E_1, E_2, \dots, E_B]$, el código usa dos tratamientos distintos segun el tipo de modelo:</p>
-      <ul>
-      <li>Modelos espectrales (<code>spectral_cosine</code>, <code>spectral_weighted</code>):
-        $$\mathbf{v}_{L2} = \frac{\mathbf{v}}{\|\mathbf{v}\|_2},\quad \|\mathbf{v}\|_2 = \sqrt{\sum_i v_i^2}\;.$$
-      </li>
-      <li>Modelos de banco de filtros (<code>filterbank</code>, <code>filterbank_fir</code>):
-        $$\mathbf{v}_{raw} = \mathbf{v}$$
-        porque el entrenamiento guarda medias, desviaciones y umbrales sobre energia cruda por subbanda.
-      </li>
-      </ul>
-      <p>Distancia Euclidiana entre muestra y perfil:</p>
-      <p>$$d(\mathbf{s},\mathbf{p}) = \|\mathbf{s} - \mathbf{p}\|_2 = \sqrt{\sum_i (s_i - p_i)^2}\;.$$</p>
-      <p>Umbral de rechazo (por especie):</p>
-      <p>$$\tau = \mu_d + 2\sigma_d$$</p>
-      <p>donde $\mu_d$ y $\sigma_d$ son la media y desviación estándar de las distancias entre muestras de entrenamiento y el perfil de esa especie.</p>
-      <p>Regla de ambigüedad (segunda mejor):</p>
-      <p>Rechazamos si la diferencia entre segundo-mejor y mejor es demasiado pequeña:</p>
-      <p>$$(d_{2} - d_{1}) \le M\cdot \max(\tau,\epsilon)$$</p>
-      <p>con $M$ el <em>ambiguity_margin</em> del modelo (p.ej. 0.05) y $\epsilon$ una pequeña constante para estabilidad.</p>
-      <p>Para confianza se usa una versión softmax sobre las puntuaciones negativas:</p>
-      <p>$$P_i = \frac{\exp(-d_i / T)}{\sum_j \exp(-d_j / T)}\quad\text{y}\quad\text{confidence}=\max_i P_i$$</p>
-      <p class="small">Nota: en los modelos de banco de filtros la interpretacion practica del score es mas parecida a una suma de diferencias de energia por subbanda que a una plantilla espectral pura.</p>
-    </section>
-
-    <section class="card">
-      <h2>Resumen del código real</h2>
-      <p>
-        La implementación actual separa dos familias de modelos:
-      </p>
-      <ul>
-        <li><strong>Espectrales</strong>: usan FFT, energía por bandas, normalización L2 y distancia euclidiana contra <code>profile_vector</code>.</li>
-        <li><strong>Banco de filtros</strong>: usan FFT, energía cruda por subbanda y comparación contra <code>mean_energy_vector</code> y <code>std_energy_vector</code>.</li>
-      </ul>
-      <p>
-        En el código, la decisión cambia según <code>model_kind</code>. Eso evita mezclar escalas incompatibles y explica por qué <code>filterbank_fir</code> ahora sí funciona de forma estable.
-      </p>
-      <p class="small">
-        Si quieres, luego puedo dejar aquí mismo un diagrama Mermaid del flujo por modelo.
-      </p>
-    </section>
-  </main>
+    <div class="footer">
+      Documento académico del pipeline DSP del proyecto de clasificación de cantos de aves.
+    </div>
+  </div>
 </body>
 </html>
