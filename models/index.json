@@ -1,0 +1,22 @@
+{
+  "butterworth_all": {
+    "name": "butterworth_all",
+    "file": "models\\butterworth_all.json",
+    "type": "json",
+    "saved_at": "2026-05-30T18:36:58.762405+00:00",
+    "checksum_md5": "eb27412ec515188e7b0f2902f07b5da6",
+    "metadata": {
+      "type": "butterworth_collection"
+    }
+  },
+  "fir_all": {
+    "name": "fir_all",
+    "file": "models\\fir_all.json",
+    "type": "json",
+    "saved_at": "2026-05-30T18:36:58.773034+00:00",
+    "checksum_md5": "71406559f959aa9f58db97e3c9b02177",
+    "metadata": {
+      "type": "fir_collection"
+    }
+  }
+}

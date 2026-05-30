@@ -1,0 +1,330 @@
+{
+  "kind": "butterworth_collection",
+  "sample_rate": 48000,
+  "models": [
+    {
+      "type": "butterworth",
+      "params": {
+        "order": 4,
+        "cutoff_freq": 5700.0,
+        "filter_type": "band",
+        "low_freq": 3600.0,
+        "high_freq": 7800.0,
+        "auto_detected": false,
+        "spectral_energy_p95_hz": null,
+        "sample_rate": 48000
+      },
+      "pre_band_energy": 0.00014452997129410505,
+      "post_band_energy": 0.00013453096636944053,
+      "post_total_energy": 0.00014216463334822544,
+      "profile_vector": [
+        0.521137535572052,
+        0.05407685786485672,
+        0.10228049755096436,
+        0.20297808945178986,
+        0.09323707967996597,
+        0.024931466206908226,
+        0.0013585081323981285
+      ],
+      "std_energy_vector": [
+        0.24567817151546478,
+        0.0331052765250206,
+        0.07499615848064423,
+        0.125082865357399,
+        0.04686534404754639,
+        0.02788088470697403,
+        0.0006227853009477258
+      ],
+      "sample_count": 5,
+      "species": "Bran-colored_Flycatcher"
+    },
+    {
+      "type": "butterworth",
+      "params": {
+        "order": 4,
+        "cutoff_freq": 6120.0,
+        "filter_type": "band",
+        "low_freq": 2400.0,
+        "high_freq": 9840.0,
+        "auto_detected": false,
+        "spectral_energy_p95_hz": null,
+        "sample_rate": 48000
+      },
+      "pre_band_energy": 0.0004070604918524623,
+      "post_band_energy": 0.00039898149408143925,
+      "post_total_energy": 0.00039904645600683935,
+      "profile_vector": [
+        0.029435837641358376,
+        0.011366576887667179,
+        0.005671375431120396,
+        0.009133363142609596,
+        0.8388050198554993,
+        0.10555882751941681,
+        2.902182677644305e-05
+      ],
+      "std_energy_vector": [
+        0.034925367683172226,
+        0.012614527717232704,
+        0.006943544838577509,
+        0.006193107925355434,
+        0.06683630496263504,
+        0.03199494257569313,
+        2.8268053938518278e-05
+      ],
+      "sample_count": 5,
+      "species": "Chestnut-capped_Warbler"
+    },
+    {
+      "type": "butterworth",
+      "params": {
+        "order": 4,
+        "cutoff_freq": 2800.0,
+        "filter_type": "band",
+        "low_freq": 800.0,
+        "high_freq": 4800.0,
+        "auto_detected": false,
+        "spectral_energy_p95_hz": null,
+        "sample_rate": 48000
+      },
+      "pre_band_energy": 0.00012649224663618952,
+      "post_band_energy": 0.000114899709635365,
+      "post_total_energy": 0.00011689169796595257,
+      "profile_vector": [
+        0.03139651566743851,
+        0.013652168214321136,
+        0.12473805248737335,
+        0.22608423233032227,
+        0.08685283362865448,
+        0.3482919931411743,
+        0.16898417472839355
+      ],
+      "std_energy_vector": [
+        0.016900083050131798,
+        0.008036596700549126,
+        0.2102205753326416,
+        0.36411499977111816,
+        0.0843358188867569,
+        0.2627205550670624,
+        0.13801808655261993
+      ],
+      "sample_count": 5,
+      "species": "Collared_Forest-Falcon"
+    },
+    {
+      "type": "butterworth",
+      "params": {
+        "order": 4,
+        "cutoff_freq": 880.0,
+        "filter_type": "band",
+        "low_freq": 320.0,
+        "high_freq": 1440.0,
+        "auto_detected": false,
+        "spectral_energy_p95_hz": null,
+        "sample_rate": 48000
+      },
+      "pre_band_energy": 3.7057739064039197e-06,
+      "post_band_energy": 2.717107403526855e-06,
+      "post_total_energy": 3.346713136937652e-06,
+      "profile_vector": [
+        0.29964569211006165,
+        0.0317857563495636,
+        0.2936576306819916,
+        0.3371748924255371,
+        0.03184578940272331,
+        0.005663181189447641,
+        0.00022704919683746994
+      ],
+      "std_energy_vector": [
+        0.3416815400123596,
+        0.034011997282505035,
+        0.3184138238430023,
+        0.3637734651565552,
+        0.028563708066940308,
+        0.005349639803171158,
+        0.0002653048431966454
+      ],
+      "sample_count": 5,
+      "species": "Golden-headed_Quetzal"
+    },
+    {
+      "type": "butterworth",
+      "params": {
+        "order": 4,
+        "cutoff_freq": 1100.0,
+        "filter_type": "band",
+        "low_freq": 400.0,
+        "high_freq": 1800.0,
+        "auto_detected": false,
+        "spectral_energy_p95_hz": null,
+        "sample_rate": 48000
+      },
+      "pre_band_energy": 0.0018713795579969883,
+      "post_band_energy": 0.0015078478856895194,
+      "post_total_energy": 0.00150804947770539,
+      "profile_vector": [
+        0.05189065262675285,
+        0.021937673911452293,
+        0.8316094279289246,
+        0.01471618004143238,
+        0.06539611518383026,
+        0.014413694851100445,
+        3.6273355362936854e-05
+      ],
+      "std_energy_vector": [
+        0.09503345936536789,
+        0.005569186992943287,
+        0.08204379677772522,
+        0.004255522042512894,
+        0.01993020623922348,
+        0.0033196350559592247,
+        1.5266788977896795e-05
+      ],
+      "sample_count": 5,
+      "species": "Laughing_Falcon"
+    },
+    {
+      "type": "butterworth",
+      "params": {
+        "order": 4,
+        "cutoff_freq": 3500.0,
+        "filter_type": "band",
+        "low_freq": 1600.0,
+        "high_freq": 5400.0,
+        "auto_detected": false,
+        "spectral_energy_p95_hz": null,
+        "sample_rate": 48000
+      },
+      "pre_band_energy": 0.0009486284106969833,
+      "post_band_energy": 0.0009098516573421766,
+      "post_total_energy": 0.0009110724198712196,
+      "profile_vector": [
+        0.49796637892723083,
+        0.0021730654407292604,
+        0.10808082669973373,
+        0.3850676417350769,
+        0.0013550391886383295,
+        0.005329980980604887,
+        2.7053367375629023e-05
+      ],
+      "std_energy_vector": [
+        0.3928246796131134,
+        0.0014538801042363048,
+        0.08635740727186203,
+        0.3146020770072937,
+        0.0008892760961316526,
+        0.0035969766322523355,
+        1.7330219634459354e-05
+      ],
+      "sample_count": 5,
+      "species": "Rufous-browed_Peppershrike"
+    },
+    {
+      "type": "butterworth",
+      "params": {
+        "order": 4,
+        "cutoff_freq": 4400.0,
+        "filter_type": "band",
+        "low_freq": 1600.0,
+        "high_freq": 7200.0,
+        "auto_detected": false,
+        "spectral_energy_p95_hz": null,
+        "sample_rate": 48000
+      },
+      "pre_band_energy": 0.00047163324779830873,
+      "post_band_energy": 0.0004613091064112761,
+      "post_total_energy": 0.0004635013364440104,
+      "profile_vector": [
+        0.762611985206604,
+        0.01696300134062767,
+        0.02525981143116951,
+        0.18127867579460144,
+        0.013542892411351204,
+        0.00034050794783979654,
+        3.0974090350355254e-06
+      ],
+      "std_energy_vector": [
+        0.2123071849346161,
+        0.006947369780391455,
+        0.016187947243452072,
+        0.18221770226955414,
+        0.009478391148149967,
+        0.00038140322430990636,
+        2.560860593803227e-06
+      ],
+      "sample_count": 5,
+      "species": "Scaly-naped_Amazon"
+    },
+    {
+      "type": "butterworth",
+      "params": {
+        "order": 4,
+        "cutoff_freq": 4900.0,
+        "filter_type": "band",
+        "low_freq": 2000.0,
+        "high_freq": 7800.0,
+        "auto_detected": false,
+        "spectral_energy_p95_hz": null,
+        "sample_rate": 48000
+      },
+      "pre_band_energy": 0.0034828349016606808,
+      "post_band_energy": 0.00341309858750808,
+      "post_total_energy": 0.0034140553485908286,
+      "profile_vector": [
+        0.4367782473564148,
+        0.004381334874778986,
+        0.004348352551460266,
+        0.04150620102882385,
+        0.5032659769058228,
+        0.004867075942456722,
+        0.004852799698710442
+      ],
+      "std_energy_vector": [
+        0.12438759207725525,
+        0.0006006870535202324,
+        0.0018274616450071335,
+        0.039209358394145966,
+        0.12934519350528717,
+        0.001296801376156509,
+        0.001310862833634019
+      ],
+      "sample_count": 5,
+      "species": "Southern_Lapwing"
+    },
+    {
+      "type": "butterworth",
+      "params": {
+        "order": 4,
+        "cutoff_freq": 1280.0,
+        "filter_type": "band",
+        "low_freq": 400.0,
+        "high_freq": 2160.0,
+        "auto_detected": false,
+        "spectral_energy_p95_hz": null,
+        "sample_rate": 48000
+      },
+      "pre_band_energy": 1.1233270925004035e-05,
+      "post_band_energy": 8.099781288424445e-06,
+      "post_total_energy": 9.483934004850899e-06,
+      "profile_vector": [
+        0.3055497705936432,
+        0.002449854975566268,
+        0.0031608797144144773,
+        0.036703187972307205,
+        0.14601324498653412,
+        0.39167100191116333,
+        0.11445210874080658
+      ],
+      "std_energy_vector": [
+        0.21230478584766388,
+        0.0015358099481090903,
+        0.002055153250694275,
+        0.015116934664547443,
+        0.061701249331235886,
+        0.12489219754934311,
+        0.06217508018016815
+      ],
+      "sample_count": 5,
+      "species": "Tropical_Screech-Owl"
+    }
+  ]
+}
