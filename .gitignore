@@ -1,6 +1,7 @@
 .venv
 birds
 dataset_aves
+dataset_aves_normalized
 dataset_aves_soften
 dataset_aves_fir
 __pycache__

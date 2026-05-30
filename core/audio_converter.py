@@ -1,8 +1,11 @@
+from config.routes_path import RoutesPath
 import numpy as np
 
 class AudioConverter:
     def __init__(self, sample_rate=16000):
-        self.sample_rate = sample_rate
+        self.sample_rate = sample_rate,
+        self.base_to_train = RoutesPath.BANK_AUDIOS_NORMALIZED
+        
 
     def process(self, audio_data):
         # Placeholder for audio processing logic

@@ -5,6 +5,15 @@ from config.frecuency_bands import FrequencyBands
 from core.audio_converter import AudioConverter
 from core.fft import FFTProcessor
 from core.signals_processor import SignalsProcessor
+from core.remove_trashs_audios import RemoveTrashAudios
+from core.models_managment import ModelsManagement
+from core.audio_stats import AudioStats
+from config.frecuency_bands import FrequencyBands
+from core.train_butterworth import TrainModelButterworth
+from core.filter_butterworth import FilterButterworth
+
+import numpy as np
+import soundfile as sf
 
 class AudioAnalyzer:
     """
@@ -29,6 +38,7 @@ class AudioAnalyzer:
         std_threshold: float = 3.0,
         silence_thresh: float = 0.01,
         butterworth_order: int = 4,
+        min_duration_sec: float = 3.0,
         butterworth_cutoff_hz: float = 8000.0,
         trash_json: str | Path | None = None,
         models_dir: str | Path = "models",
@@ -40,7 +50,7 @@ class AudioAnalyzer:
         self.silence_thresh = silence_thresh
         self.butterworth_order = butterworth_order
         self.butterworth_cutoff_hz = butterworth_cutoff_hz
- 
+        self.min_duration_sec = min_duration_sec
         self._converter = AudioConverter()
         self._fft = FFTProcessor()
  
@@ -138,7 +148,15 @@ class AudioAnalyzer:
         stats.channels = 1 if audio_raw.ndim == 1 else audio_raw.shape[1]
         stats.n_samples = len(audio_raw) if audio_raw.ndim == 1 else audio_raw.shape[0]
         stats.duration_sec = stats.n_samples / sr if sr > 0 else 0.0
- 
+        if stats.duration_sec < self.min_duration_sec:
+            stats.is_outlier = True
+
+            stats.outlier_reasons.append(
+                f"duration_too_short="
+                f"{stats.duration_sec:.2f}s "
+                f"(min={self.min_duration_sec:.2f}s)"
+            )
+
         # Convertir a mono float32
         y: np.ndarray = self._converter.to_mono_float32(audio_raw)
  
@@ -187,8 +205,8 @@ class AudioAnalyzer:
             stats.dominant_freq_hz = float(freqs[np.argmax(magnitude)])
  
             # Energía por bandas
-            band_tuples = [(lo, hi) for lo, hi, _ in FREQUENCY_BANDS]
-            band_labels = [lbl for _, _, lbl in FREQUENCY_BANDS]
+            band_tuples = [(lo, hi) for lo, hi, _ in FrequencyBands().get_bands()]
+            band_labels = [lbl for _, _, lbl in FrequencyBands().get_bands()]
             energies = self._fft.compute_band_energies(y, sr, band_tuples)
             stats.band_energies = {
                 lbl: float(e) for lbl, e in zip(band_labels, energies)
