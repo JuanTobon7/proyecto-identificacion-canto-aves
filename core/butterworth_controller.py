@@ -97,7 +97,11 @@ class ButterworthController:
                 sample_rate=sr,
             )
         else:
-            params = self.filter_butterworth._auto_detect_cutoff(y, sr)
+            # self.filter_butterworth is not yet initialized here — use a temporary
+            # FilterButterworth instance to auto-detect cutoff safely.
+            temp_fb = FilterButterworth(order=self.order)
+            temp_fb.filter_type = self.filter_type
+            params = temp_fb._auto_detect_cutoff(y, sr)
  
         self.last_params = params
         #self._print_params(params)

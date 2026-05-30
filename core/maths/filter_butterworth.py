@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.signal import butter, filtfilt
+from scipy.signal import butter, sosfiltfilt
 from core.dto.buttherworth_params import ButterworthParams
 from core.maths.fft import FFTProcessor
 
@@ -19,17 +19,17 @@ class FilterButterworth:
         Filtro pasa-bajas Butterworth
         """
 
-        nyquist = sr / 2
-        normalized_cutoff = cutoff_freq / nyquist
+        normalized_cutoff = self._normalize_cutoff(sr, cutoff_freq)
 
-        b, a = butter(
+        sos = butter(
             self.order,
             normalized_cutoff,
             btype='low',
-            analog=False
+            analog=False,
+            output='sos'
         )
 
-        filtered_signal = filtfilt(b, a, signal)
+        filtered_signal = sosfiltfilt(sos, signal)
 
         return filtered_signal
 
@@ -43,17 +43,17 @@ class FilterButterworth:
         Filtro pasa-altas Butterworth
         """
 
-        nyquist = sr / 2
-        normalized_cutoff = cutoff_freq / nyquist
+        normalized_cutoff = self._normalize_cutoff(sr, cutoff_freq)
 
-        b, a = butter(
+        sos = butter(
             self.order,
             normalized_cutoff,
             btype='high',
-            analog=False
+            analog=False,
+            output='sos'
         )
 
-        filtered_signal = filtfilt(b, a, signal)
+        filtered_signal = sosfiltfilt(sos, signal)
 
         return filtered_signal
 
@@ -68,20 +68,47 @@ class FilterButterworth:
         Filtro pasa-banda Butterworth
         """
 
-        nyquist = sr / 2
+        low, high = self._normalize_band(sr, low_freq, high_freq)
 
-        low = low_freq / nyquist
-        high = high_freq / nyquist
-
-        b, a = butter(
+        sos = butter(
             self.order,
             [low, high],
-            btype='band'
+            btype='bandpass',
+            output='sos'
         )
 
-        filtered_signal = filtfilt(b, a, signal)
+        filtered_signal = sosfiltfilt(sos, signal)
 
         return filtered_signal
+
+    @staticmethod
+    def _normalize_cutoff(sr: int, cutoff_freq: float) -> float:
+        nyquist = sr / 2
+        cutoff = float(cutoff_freq)
+        if cutoff <= 0:
+            raise ValueError(f"cutoff_freq debe ser mayor que 0, no {cutoff_freq}.")
+        if cutoff >= nyquist:
+            raise ValueError(
+                f"cutoff_freq debe ser menor que Nyquist ({nyquist:.1f} Hz), no {cutoff_freq}."
+            )
+        return cutoff / nyquist
+
+    @staticmethod
+    def _normalize_band(sr: int, low_freq: float, high_freq: float) -> tuple[float, float]:
+        nyquist = sr / 2
+        low = float(low_freq)
+        high = float(high_freq)
+        if low <= 0:
+            raise ValueError(f"low_freq debe ser mayor que 0, no {low_freq}.")
+        if high >= nyquist:
+            raise ValueError(
+                f"high_freq debe ser menor que Nyquist ({nyquist:.1f} Hz), no {high_freq}."
+            )
+        if low >= high:
+            raise ValueError(
+                f"low_freq debe ser menor que high_freq, no {low_freq} >= {high_freq}."
+            )
+        return low / nyquist, high / nyquist
     
     def _auto_detect_cutoff(self, y: np.ndarray, sr: int) -> ButterworthParams:
         """

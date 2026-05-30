@@ -381,35 +381,39 @@ class AudioAnalyzer:
                         )
                     )
                     
-                    # construir filtro
-                    filter_model = (
-                        butterworth.build(
-                            signal=y,
-                            sr=sr
-                        )
-                    )
+                    # construir filtro (diagnósticos incluidos)
+                    filter_model = butterworth.build(signal=y, sr=sr)
                     params = butterworth.last_params
 
-                    y_filtered = (
-                        filter_model.apply_bandpass(
-                            signal=y,
-                            sr=sr,
-                            low_freq=params.low_freq,
-                            high_freq=params.high_freq
-                        )
-                    )
-                    
-                    output_path = (
-                        output_dir
-                        / fpath.name
+                    print(f"  [DEBUG] Params: order={params.order}, low={params.low_freq}, high={params.high_freq}, auto={params.auto_detected}")
+
+                    y_filtered = filter_model.apply_bandpass(
+                        signal=y,
+                        sr=sr,
+                        low_freq=params.low_freq,
+                        high_freq=params.high_freq,
                     )
 
-                    # Guardar audio
-                    sf.write(
-                        str(output_path),
-                        y_filtered,
-                        sr
-                    )
+                    # Diagnostics: check for NaN/Inf and amplitude
+                    if not np.isfinite(y_filtered).all():
+                        print(f"  [ERROR] filtered contains non-finite values for {fpath.name}")
+                        continue
+
+                    pre_peak = float(np.max(np.abs(y))) if y.size else 0.0
+                    post_peak = float(np.max(np.abs(y_filtered))) if y_filtered.size else 0.0
+                    print(f"  [DEBUG] pre_peak={pre_peak:.6f}, post_peak={post_peak:.6f}")
+
+                    # Normalize output to avoid clipping when writing
+                    peak = post_peak
+                    if peak > 0:
+                        y_out = (y_filtered / peak * 0.99).astype(np.float32)
+                    else:
+                        y_out = y_filtered.astype(np.float32)
+
+                    output_path = output_dir / fpath.name
+
+                    # Guardar audio como float WAV para evitar cuantización agresiva
+                    sf.write(str(output_path), y_out, sr, subtype="FLOAT")
 
                 except Exception as exc:
                     print(
