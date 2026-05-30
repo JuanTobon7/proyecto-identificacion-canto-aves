@@ -50,3 +50,7 @@ class BirdRepository:
             audios_by_species[specie_name] = specie_audios
 
         return audios_by_species
+
+    def species_names(self) -> list[str]:
+        """Lista de especies cargadas desde general_info_aves.json."""
+        return [bird.nombre_comun_ingles for bird in self._birds]

@@ -6,13 +6,13 @@ Script de entrada para analizar el corpus normalizado.
 Ejecución
 ---------
     # Análisis completo (marca outliers, guarda modelo)
-    python run_analyzis_audio.py
+    python run_analysis.py
 
     # Solo previsualizar qué se borraría (sin borrar)
-    python run_analyzis_audio.py --dry-run
+    python run_analysis.py --dry-run
 
     # Borrar los audios ya marcados en trash_audios.json
-    python run_analyzis_audio.py --delete-trash
+    python run_analysis.py --delete-trash
 """
 
 import argparse
@@ -101,10 +101,6 @@ def main() -> None:
     )
 
     report = analyzer.run()
-    
-    if len(report) == 0:
-        print("Audios ya analizados previamente. Usa --delete-trash para borrar los marcados o --dry-run para previsualizar.")
-        return
 
     # Guardar reporte JSON si se pidió
     if args.report_json:

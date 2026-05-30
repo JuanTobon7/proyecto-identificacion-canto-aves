@@ -58,7 +58,7 @@ class AudioAnalyzer:
         self._converter = AudioConverter()
         self._fft = FFTProcessor()
         self.models_manage = ModelsManagement(base_dir=models_dir)
-        self.bird_repo = BirdRepository(env='training')
+        self.bird_repo = BirdRepository()
         self.trash = RemoveTrashAudios(json_path=trash_json)
         self.models = ModelsManagement(base_dir=models_dir)
  
@@ -83,17 +83,23 @@ class AudioAnalyzer:
         print(f"  AudioAnalyzer — corpus: {self.normalized_dir}")
         print(f"  Umbral outlier: ±{self.std_threshold}σ")
         print(f"{'='*60}\n")
- 
+        print(f"Usando carpeta normalizada: {self.normalized_dir}")
         if self.verify_normalized_audios():
+            print("[WARN] Se detectaron audios no normalizados. Por favor, normalízalos antes de continuar.")
             return []
+        print("Los audios parecen estar normalizados. Continuando con el análisis...")
         # Paso 1: análisis individual
         audio_files = self._discover_files()
+        print("archivos", audio_files)
+        print(f"Archivos encontrados: {len(audio_files)}")
+        print("PASO 1 ANALIZAR CADA ARCHIVO INDIVIDUALMENTE...")
         for fpath in audio_files:
+            print(f"Analizando {fpath.name}...")
             stats = self._analyze_file(fpath)
             self._stats.append(stats)
 
         print(f"\nAnálisis individual completado. Archivos analizados: {len(self._stats)}")
-        
+        print("PASO 2 DETECTAR OUTLIERS A NIVEL DE CORPUS...")
         # Paso 2: detección de outliers corpus-level
         self._detect_outliers()
  
@@ -120,8 +126,6 @@ class AudioAnalyzer:
         audio_files = []
         for especie, paths in self.bird_repo.get_audios_by_species().items():
             audio_files.extend(paths)
-        
-        print(f"Archivos de audio encontrados: {len(audio_files)}")
         return audio_files
  
     # ------------------------------------------------------------------
@@ -322,6 +326,7 @@ class AudioAnalyzer:
             return
     
         print("PASO 5 APLICAR FILTRO BUTTERWORTH A LOS AUDIOS LIMPIOS...")
+        print(f"Total especies a procesar: {len(audio_paths_by_especie)}")
         for especie, audio_paths in (
             audio_paths_by_especie.items()
         ):
@@ -438,30 +443,22 @@ class AudioAnalyzer:
         print(f"{'='*60}\n")
  
     def verify_normalized_audios(self) -> bool:
-        """_summary_
-            Verify if the normalized was made before, if not, return True, else False
-            if it´s false it means that the audios are already normalized and we can proceed to the next step of the pipeline
-            if it´s true it means that the audios are not normalized and we need to normalize them before proceeding to the next step of the pipeline
-        Returns:
-            bool: veredict to proceed with the next step of the pipeline or not
         """
-        
-        audio_files = self._discover_files()
-        if not audio_files:
-            print("[WARN] No se encontraron archivos de audio.")
-            return False
-        
-        for fpath in audio_files:
-            try:
-                audio_raw, sr = sf.read(str(fpath), always_2d=False)
-                y = self._converter.to_mono_float32(audio_raw)
-                if np.max(np.abs(y)) > 0.9999:
-                    return True
-            except Exception as exc:
-                print(f"  [ERROR] No se pudo leer {fpath.name}: {exc}")
-                continue
-        
-        print("Todos los archivos parecen estar normalizados.")
+        True  -> hay que normalizar
+        False -> ya están normalizados
+        """
+
+        normalized_dir = Path("dataset_aves_normalized")
+
+        if not normalized_dir.exists():
+            return True
+
+        audio_files = list(normalized_dir.rglob("*.wav"))
+
+        if len(audio_files) == 0:
+            return True
+
+        print("Usando carpeta normalizada:", normalized_dir)
         return False
         
  

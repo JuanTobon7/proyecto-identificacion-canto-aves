@@ -1,9 +1,10 @@
 from config.routes_path import RoutesPath
+import librosa
 import numpy as np
 
 class AudioConverter:
     def __init__(self, sample_rate=16000):
-        self.sample_rate = sample_rate,
+        self.sample_rate = sample_rate
         self.base_to_train = RoutesPath.BANK_AUDIOS_NORMALIZED
         
     def convert_to_mono(self, audio_data):
@@ -23,6 +24,17 @@ class AudioConverter:
         else:
             audio = audio.astype(np.float32)
         return audio
+
+    @staticmethod
+    def resample(audio: np.ndarray, orig_sr: int, target_sr: int) -> np.ndarray:
+        """Remuestrea audio manteniendo float32 y sin alterar si el sample rate ya coincide."""
+        if orig_sr == target_sr or audio.size == 0:
+            return audio.astype(np.float32, copy=False)
+        return librosa.resample(
+            audio.astype(np.float32, copy=False),
+            orig_sr=orig_sr,
+            target_sr=target_sr,
+        )
     
     def convert_to_audio_from_mono_float32(self, mono_audio: np.ndarray, original_dtype) -> np.ndarray:
         """Convierte audio mono float32 de vuelta a su tipo de dato original."""

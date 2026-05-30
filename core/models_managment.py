@@ -105,13 +105,7 @@ class ModelsManagement:
         """
         Carga un artefacto JSON.
         """
-
-        if name not in self._index:
-            raise KeyError(
-                f"Recurso '{name}' no encontrado."
-            )
-
-        file_path = Path(self._index[name]["file"])
+        file_path = self._resolve_file_path(name)
 
         if not file_path.exists():
             raise FileNotFoundError(
@@ -138,7 +132,7 @@ class ModelsManagement:
 
     def exists(self, name: str) -> bool:
         """Retorna True si el modelo está registrado en el índice."""
-        return name in self._index
+        return name in self._index or (self.base_dir / f"{name}.json").exists()
 
     def info(self, name: str) -> dict:
         """Retorna los metadatos almacenados del modelo."""
@@ -148,7 +142,25 @@ class ModelsManagement:
 
     def list_models(self) -> list[dict]:
         """Retorna una lista con la info de todos los modelos registrados."""
-        return list(self._index.values())
+        models = list(self._index.values())
+        seen_names = {entry.get("name") for entry in models if entry.get("name")}
+
+        for file_path in sorted(self.base_dir.glob("*.json")):
+            if file_path.name == self.INDEX_FILE:
+                continue
+            model_name = file_path.stem
+            if model_name in seen_names:
+                continue
+            models.append({
+                "name": model_name,
+                "file": str(file_path),
+                "type": "json",
+                "saved_at": None,
+                "checksum_md5": self._md5(file_path),
+                "metadata": {},
+            })
+
+        return models
 
     # ------------------------------------------------------------------
     # Métodos privados
@@ -159,6 +171,20 @@ class ModelsManagement:
             with open(self._index_path, "r", encoding="utf-8") as fh:
                 return json.load(fh)
         return {}
+
+    def _resolve_file_path(self, name: str) -> Path:
+        if name in self._index:
+            return Path(self._index[name]["file"])
+
+        direct_path = Path(name)
+        if direct_path.suffix == ".json" and direct_path.exists():
+            return direct_path
+
+        file_path = self.base_dir / f"{name}.json"
+        if file_path.exists():
+            return file_path
+
+        raise KeyError(f"Recurso '{name}' no encontrado.")
 
     def _save_index(self) -> None:
         with open(self._index_path, "w", encoding="utf-8") as fh:

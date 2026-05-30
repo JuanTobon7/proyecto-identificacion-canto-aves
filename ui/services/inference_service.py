@@ -30,7 +30,7 @@ class InferenceService:
                 model = self.models_mgmt.get_json(model_name)
             except Exception:
                 continue
-            if str(model.get("kind", "")).endswith("collection"):
+            if str(model.get("kind", "")).endswith("collection") or isinstance(model.get("models"), list):
                 models.append(model_name)
         return sorted(models)
 
@@ -67,7 +67,12 @@ class InferenceService:
 
         predictor = Predict(model_name=model_name, model_dir=self.model_dir)
         ranking = predictor.predict_proba(audio, sample_rate)
-        predicted_species = ranking[0]["species"] if ranking else ""
+        allowed_species = set(self.bird_repo.species_names())
+        ranking = [item for item in ranking if item.get("species") in allowed_species]
+        if not ranking:
+            raise ValueError("El modelo cargado no contiene especies presentes en general_info_aves.json.")
+
+        predicted_species = ranking[0]["species"]
         confidence = self._softmax_confidence(ranking)
         selected_model = self._select_model(collection, predicted_species)
 
