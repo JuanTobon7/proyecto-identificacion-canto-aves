@@ -1,9 +1,9 @@
-from core.fft import FFTProcessor
-from core.filter_butterworth import FilterButterworth
+from core.maths.fft import FFTProcessor
+from core.maths.filter_butterworth import FilterButterworth
 from typing import Optional
 from dataclasses import dataclass, asdict
 from core.audio_converter import AudioConverter
-from core.buttherworth_params import ButterworthParams
+from core.dto.buttherworth_params import ButterworthParams
 import numpy as np
 
 class TrainModelButterworth:

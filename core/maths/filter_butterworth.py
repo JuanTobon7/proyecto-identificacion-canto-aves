@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.signal import butter, filtfilt
-from core.buttherworth_params import ButterworthParams
-from core.fft import FFTProcessor
+from core.dto.buttherworth_params import ButterworthParams
+from core.maths.fft import FFTProcessor
 
 class FilterButterworth:
     def __init__(self, order: int = 4):

@@ -3,14 +3,13 @@ from typing import Optional
 from config.routes_path import RoutesPath
 from config.frecuency_bands import FrequencyBands
 from core.audio_converter import AudioConverter
-from core.fft import FFTProcessor
-from core.signals_processor import SignalsProcessor
+from core.maths.fft import FFTProcessor
 from core.remove_trashs_audios import RemoveTrashAudios
 from core.models_managment import ModelsManagement
-from core.audio_stats import AudioStats
+from core.dto.audio_stats import AudioStats
 from config.frecuency_bands import FrequencyBands
 from core.train_butterworth import TrainModelButterworth
-from core.filter_butterworth import FilterButterworth
+from core.maths.filter_butterworth import FilterButterworth
 
 import numpy as np
 import soundfile as sf
