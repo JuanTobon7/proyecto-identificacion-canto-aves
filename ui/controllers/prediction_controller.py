@@ -53,6 +53,21 @@ class PredictionController(QObject):
 
         threading.Thread(target=_worker, daemon=True).start()
 
+    def play_signal(self, audio, sample_rate: int) -> None:
+        def _worker() -> None:
+            try:
+                self.playback_started.emit()
+                self.audio_runtime.play_signal(
+                    audio,
+                    sample_rate,
+                    on_position=lambda position: self.playback_position_changed.emit(position),
+                )
+                self.playback_finished.emit()
+            except Exception as exc:
+                self.prediction_failed.emit(str(exc))
+
+        threading.Thread(target=_worker, daemon=True).start()
+
     def record_and_predict(self, model_name: str, seconds: float = 3.0) -> None:
         def _worker() -> None:
             try:

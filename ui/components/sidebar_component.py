@@ -11,6 +11,7 @@ from ui.components.model_selector_component import ModelSelectorComponent
 class SidebarComponent(QFrame):
     processRequested = Signal(str, str)
     playRequested = Signal(str)
+    playFilteredRequested = Signal()
     recordRequested = Signal(str)
 
     def __init__(self, parent=None) -> None:
@@ -20,6 +21,7 @@ class SidebarComponent(QFrame):
         self.audio_selector = AudioSelectorComponent()
         self.process_button = QPushButton("Procesar")
         self.play_button = QPushButton("Reproducir")
+        self.play_filtered_button = QPushButton("Reproducir filtrado")
         self.record_button = QPushButton("Grabar 3s y analizar")
         self.loading = LoadingComponent()
 
@@ -28,6 +30,7 @@ class SidebarComponent(QFrame):
         layout.addWidget(self.audio_selector)
         action_row = QHBoxLayout()
         action_row.addWidget(self.play_button)
+        action_row.addWidget(self.play_filtered_button)
         action_row.addWidget(self.record_button)
         layout.addLayout(action_row)
         layout.addWidget(self.process_button)
@@ -36,6 +39,7 @@ class SidebarComponent(QFrame):
 
         self.process_button.clicked.connect(self._emit_process)
         self.play_button.clicked.connect(self._emit_play)
+        self.play_filtered_button.clicked.connect(self.playFilteredRequested.emit)
         self.record_button.clicked.connect(self._emit_record)
 
     def set_models(self, models: list[str]) -> None:

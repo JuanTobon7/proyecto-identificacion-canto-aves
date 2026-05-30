@@ -29,6 +29,7 @@ class MainWindow(QMainWindow):
         self.energy_vector = EnergyVectorComponent()
         self.filter_info = ButterworthInfoComponent()
         self.metrics = MetricsComponent()
+        self._last_result: PredictionResult | None = None
 
         self._build_layout()
         self._bind_controller()
@@ -68,6 +69,7 @@ class MainWindow(QMainWindow):
     def _bind_controller(self) -> None:
         self.sidebar.processRequested.connect(self._handle_process)
         self.sidebar.playRequested.connect(self._handle_play)
+        self.sidebar.playFilteredRequested.connect(self._handle_play_filtered)
         self.sidebar.recordRequested.connect(self._handle_record)
         self.controller.prediction_started.connect(lambda: self.sidebar.set_busy(True))
         self.controller.prediction_finished.connect(self._apply_result)
@@ -104,8 +106,15 @@ class MainWindow(QMainWindow):
             return
         self.controller.record_and_predict(model_name, seconds=3.0)
 
+    def _handle_play_filtered(self) -> None:
+        if self._last_result is None or self._last_result.filtered_signal.size == 0:
+            self._show_error("Primero procesa o graba un audio para reproducir el filtrado.")
+            return
+        self.controller.play_signal(self._last_result.filtered_signal, self._last_result.sample_rate)
+
     def _apply_result(self, result: PredictionResult) -> None:
         self.sidebar.set_busy(False)
+        self._last_result = result
         self.prediction_card.set_result(result)
         self.bird_info.set_bird_info(result.bird_info)
         self.signal_plot.set_data(result.original_signal, result.filtered_signal, result.sample_rate)
