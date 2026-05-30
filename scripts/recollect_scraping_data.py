@@ -381,7 +381,7 @@ def scrape():
     with sync_playwright() as p:
 
         browser = p.chromium.launch(
-            headless=HEADLESS
+            headless=True
         )
 
         page = browser.new_page()
