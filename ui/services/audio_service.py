@@ -31,8 +31,14 @@ class AudioService:
             return audio.astype(np.float32, copy=False)
         return librosa.resample(audio.astype(np.float32, copy=False), orig_sr=orig_sr, target_sr=target_sr)
 
-    def spectrum(self, audio: np.ndarray, sr: int) -> tuple[np.ndarray, np.ndarray]:
-        return self.fft.compute_fft(audio, sr)
+    def spectrum(self, audio: np.ndarray, sr: int, fft_points: int | None = None) -> tuple[np.ndarray, np.ndarray]:
+        freqs, magnitude = self.fft.compute_fft(audio, sr)
+        if fft_points is None or fft_points <= 0 or freqs.size == 0 or magnitude.size == 0:
+            return freqs, magnitude
+
+        freq_grid = np.linspace(0.0, sr / 2.0, int(fft_points))
+        interpolated = np.interp(freq_grid, freqs, magnitude, left=0.0, right=0.0)
+        return freq_grid, interpolated
 
     def build_model_subbands(self, model: dict[str, Any]) -> tuple[list[tuple[float, float]], list[str]]:
         low_freq, high_freq = self._model_band(model)
@@ -88,29 +94,54 @@ class AudioService:
 
         return stats
 
-    def filter_audio(self, audio: np.ndarray, sr: int, model: dict[str, Any], model_kind: str) -> np.ndarray:
+    def filter_audio(
+        self,
+        audio: np.ndarray,
+        sr: int,
+        model: dict[str, Any],
+        model_kind: str,
+        order_override: int | None = None,
+        low_freq_override: float | None = None,
+        high_freq_override: float | None = None,
+    ) -> np.ndarray:
         if model_kind == "fir_collection" or model.get("type") == "fir":
             fir = FilterFir(sr=sr, num_taps=max(1, len(model.get("coeffs", []))))
             fir.coeffs = np.asarray(model.get("coeffs", []), dtype=np.float64)
             return fir.process_signal_fast(audio)
 
         params = model.get("params", {})
-        butterworth = FilterButterworth(order=int(params.get("order", 4)))
+        butterworth = FilterButterworth(order=int(order_override if order_override is not None else params.get("order", 4)))
+        low_freq = float(low_freq_override if low_freq_override is not None else params.get("low_freq", 0.0))
+        high_freq = float(high_freq_override if high_freq_override is not None else params.get("high_freq", 0.0))
         return butterworth.apply_bandpass(
             signal=audio,
             sr=sr,
-            low_freq=float(params.get("low_freq", 0.0)),
-            high_freq=float(params.get("high_freq", 0.0)),
+            low_freq=low_freq,
+            high_freq=high_freq,
         )
 
-    def preview_butterworth_params(self, audio: np.ndarray, sr: int, model: dict[str, Any], model_kind: str) -> dict[str, Any]:
+    def preview_butterworth_params(
+        self,
+        audio: np.ndarray,
+        sr: int,
+        model: dict[str, Any],
+        model_kind: str,
+        order_override: int | None = None,
+        low_freq_override: float | None = None,
+        high_freq_override: float | None = None,
+    ) -> dict[str, Any]:
         if audio.size == 0 or sr <= 0:
             return {}
         if model_kind != "butterworth_collection" and model.get("type") != "butterworth":
             return dict(model.get("params", {}))
 
         params = model.get("params", {})
-        controller = ButterworthController(order=int(params.get("order", 4)), filter_type="band")
+        controller = ButterworthController(
+            order=int(order_override if order_override is not None else params.get("order", 4)),
+            filter_type="band",
+            low_freq=low_freq_override if low_freq_override is not None else float(params.get("low_freq", 0.0)),
+            high_freq=high_freq_override if high_freq_override is not None else float(params.get("high_freq", 0.0)),
+        )
         controller.build(signal=audio, sr=sr)
         if controller.last_params is None:
             return dict(params)

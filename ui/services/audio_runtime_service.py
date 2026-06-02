@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import math
+import tempfile
 from pathlib import Path
+from pathlib import Path
+from uuid import uuid4
 from typing import Callable
 
 import numpy as np
+import soundfile as sf
 import sounddevice as sd
 
 from core.audio_converter import AudioConverter
@@ -72,11 +76,16 @@ class AudioRuntimeService:
         audio, sample_rate = self.audio_service.load_audio(audio_path)
         self.play_signal(audio, sample_rate, on_position=on_position)
 
-    def record_seconds(self, seconds: float = 3.0, sample_rate: int = 48000) -> tuple[np.ndarray, int]:
+    def record_seconds(self, seconds: float = 3.0, sample_rate: int = 48000) -> tuple[np.ndarray, int, Path]:
         if seconds <= 0:
             raise ValueError("La duracion de grabacion debe ser mayor que cero.")
         duration = float(seconds)
         frames = int(duration * sample_rate)
         recording = sd.rec(frames, samplerate=sample_rate, channels=1, dtype="float32")
         sd.wait()
-        return recording.reshape(-1).astype(np.float32, copy=False), sample_rate
+        audio = recording.reshape(-1).astype(np.float32, copy=False)
+        temp_dir = Path(tempfile.gettempdir()) / "proyecto_canto_aves"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        temp_path = temp_dir / f"mic_recording_{uuid4().hex}.wav"
+        sf.write(str(temp_path), audio, sample_rate)
+        return audio, sample_rate, temp_path

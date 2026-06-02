@@ -92,7 +92,15 @@ class MainWindow(QMainWindow):
         if not audio_path:
             self._show_error("Selecciona un archivo de audio.")
             return
-        self.controller.run_prediction(model_name, audio_path)
+        params = self.sidebar.analysis_parameters()
+        self.controller.run_prediction(
+            model_name,
+            audio_path,
+            butterworth_order=params["butterworth_order"],
+            butterworth_low_freq=params["butterworth_low_freq"],
+            butterworth_high_freq=params["butterworth_high_freq"],
+            fft_points=params["fft_points"],
+        )
 
     def _handle_play(self, audio_path: str) -> None:
         if not audio_path:
@@ -104,7 +112,15 @@ class MainWindow(QMainWindow):
         if not model_name:
             self._show_error("Selecciona un modelo antes de grabar.")
             return
-        self.controller.record_and_predict(model_name, seconds=3.0)
+        params = self.sidebar.analysis_parameters()
+        self.controller.record_and_predict(
+            model_name,
+            seconds=3.0,
+            butterworth_order=params["butterworth_order"],
+            butterworth_low_freq=params["butterworth_low_freq"],
+            butterworth_high_freq=params["butterworth_high_freq"],
+            fft_points=params["fft_points"],
+        )
 
     def _handle_play_filtered(self) -> None:
         if self._last_result is None or self._last_result.filtered_signal.size == 0:
@@ -115,6 +131,8 @@ class MainWindow(QMainWindow):
     def _apply_result(self, result: PredictionResult) -> None:
         self.sidebar.set_busy(False)
         self._last_result = result
+        if result.audio_path:
+            self.sidebar.set_audio_path(result.audio_path)
         self.prediction_card.set_result(result)
         self.bird_info.set_bird_info(result.bird_info)
         self.signal_plot.set_data(result.original_signal, result.filtered_signal, result.sample_rate)

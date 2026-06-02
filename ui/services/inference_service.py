@@ -35,13 +35,33 @@ class InferenceService:
                 models.append(model_name)
         return sorted(models)
 
-    def process(self, model_name: str, audio_path: str | Path) -> PredictionResult:
+    def process(
+        self,
+        model_name: str,
+        audio_path: str | Path,
+        butterworth_order: int | None = None,
+        butterworth_low_freq: float | None = None,
+        butterworth_high_freq: float | None = None,
+        fft_points: int | None = None,
+    ) -> PredictionResult:
         collection = self.models_mgmt.get_json(model_name)
         model_kind = str(collection.get("kind", ""))
         model_sr = self._resolve_sample_rate(collection)
 
         audio, original_sr = self.audio_service.load_audio(audio_path)
-        return self.process_audio(model_name, audio_path, audio, original_sr, collection, model_kind, model_sr)
+        return self.process_audio(
+            model_name,
+            audio_path,
+            audio,
+            original_sr,
+            collection,
+            model_kind,
+            model_sr,
+            butterworth_order=butterworth_order,
+            butterworth_low_freq=butterworth_low_freq,
+            butterworth_high_freq=butterworth_high_freq,
+            fft_points=fft_points,
+        )
 
     def process_audio(
         self,
@@ -52,6 +72,10 @@ class InferenceService:
         collection: dict[str, Any] | None = None,
         model_kind: str | None = None,
         model_sr: int | None = None,
+        butterworth_order: int | None = None,
+        butterworth_low_freq: float | None = None,
+        butterworth_high_freq: float | None = None,
+        fft_points: int | None = None,
     ) -> PredictionResult:
         if collection is None:
             collection = self.models_mgmt.get_json(model_name)
@@ -80,9 +104,20 @@ class InferenceService:
         rejected = confidence < rejection_threshold
         predicted_species = "Rechazado" if rejected else top_species
 
-        filtered = self.audio_service.filter_audio(audio, sample_rate, selected_model, model_kind)
-        original_freqs, original_magnitude = self.audio_service.spectrum(audio, sample_rate)
-        filtered_freqs, filtered_magnitude = self.audio_service.spectrum(filtered, sample_rate)
+        effective_low_freq = butterworth_low_freq if butterworth_low_freq is not None else self._model_band(selected_model)[0]
+        effective_high_freq = butterworth_high_freq if butterworth_high_freq is not None else self._model_band(selected_model)[1]
+
+        filtered = self.audio_service.filter_audio(
+            audio,
+            sample_rate,
+            selected_model,
+            model_kind,
+            order_override=butterworth_order,
+            low_freq_override=effective_low_freq,
+            high_freq_override=effective_high_freq,
+        )
+        original_freqs, original_magnitude = self.audio_service.spectrum(audio, sample_rate, fft_points=fft_points)
+        filtered_freqs, filtered_magnitude = self.audio_service.spectrum(filtered, sample_rate, fft_points=fft_points)
         original_vector, band_labels = self.audio_service.energy_vector(audio, sample_rate, selected_model)
         filtered_vector, _ = self.audio_service.energy_vector(filtered, sample_rate, selected_model)
 
@@ -92,10 +127,21 @@ class InferenceService:
         bird_info = self.bird_repo.get_by_species(top_species)
         original_stats = self.audio_service.compute_stats(audio, sample_rate, original_energies, band_labels)
         filtered_stats = self.audio_service.compute_stats(filtered, sample_rate, filtered_energies, band_labels)
-        butterworth_params = self.audio_service.preview_butterworth_params(audio, sample_rate, selected_model, model_kind)
+        butterworth_params = self.audio_service.preview_butterworth_params(
+            audio,
+            sample_rate,
+            selected_model,
+            model_kind,
+            order_override=butterworth_order,
+            low_freq_override=effective_low_freq,
+            high_freq_override=effective_high_freq,
+        )
         if not butterworth_params:
             butterworth_params = self._model_parameters(selected_model)
+        if butterworth_order is not None:
+            butterworth_params["order"] = int(butterworth_order)
         butterworth_params.setdefault("rejection_threshold", rejection_threshold)
+        butterworth_params.setdefault("fft_points", fft_points if fft_points is not None else 0)
 
         return PredictionResult(
             model_name=model_name,
@@ -181,3 +227,8 @@ class InferenceService:
                 "window": model.get("window"),
             }
         return dict(model.get("params", {}))
+
+    @staticmethod
+    def _model_band(model: dict[str, Any]) -> tuple[float, float]:
+        params = model.get("params", {})
+        return float(params.get("low_freq", 0.0)), float(params.get("high_freq", 0.0))

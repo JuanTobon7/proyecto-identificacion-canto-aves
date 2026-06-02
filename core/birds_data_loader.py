@@ -77,6 +77,17 @@ class BirdDataLoader:
                     nombre_cientifico=bird[
                         "nombre_cientifico"
                     ],
+                    familia=bird.get("familia", ""),
+                    orden=bird.get("orden", ""),
+                    descripcion=bird.get("descripcion", ""),
+                    distribucion=bird.get("distribucion", ""),
+                    img=bird.get("img", ""),
+                    habitat=list(bird.get("habitat", [])),
+                    dieta=list(bird.get("dieta", [])),
+                    estado_conservacion=bird.get("estado_conservacion", ""),
+                    longitud_cm=bird.get("longitud_cm"),
+                    peso_g_min=(bird.get("peso_g") or {}).get("min"),
+                    peso_g_max=(bird.get("peso_g") or {}).get("max"),
                     vocalizaciones=vocal
                 )
             )

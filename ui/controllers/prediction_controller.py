@@ -28,10 +28,25 @@ class PredictionController(QObject):
     def available_models(self) -> list[str]:
         return self.inference_service.available_models()
 
-    def run_prediction(self, model_name: str, audio_path: str | Path) -> PredictionResult | None:
+    def run_prediction(
+        self,
+        model_name: str,
+        audio_path: str | Path,
+        butterworth_order: int | None = None,
+        butterworth_low_freq: float | None = None,
+        butterworth_high_freq: float | None = None,
+        fft_points: int | None = None,
+    ) -> PredictionResult | None:
         self.prediction_started.emit()
         try:
-            result = self.inference_service.process(model_name=model_name, audio_path=audio_path)
+            result = self.inference_service.process(
+                model_name=model_name,
+                audio_path=audio_path,
+                butterworth_order=butterworth_order,
+                butterworth_low_freq=butterworth_low_freq,
+                butterworth_high_freq=butterworth_high_freq,
+                fft_points=fft_points,
+            )
         except Exception as exc:
             self.prediction_failed.emit(str(exc))
             return None
@@ -68,16 +83,28 @@ class PredictionController(QObject):
 
         threading.Thread(target=_worker, daemon=True).start()
 
-    def record_and_predict(self, model_name: str, seconds: float = 3.0) -> None:
+    def record_and_predict(
+        self,
+        model_name: str,
+        seconds: float = 3.0,
+        butterworth_order: int | None = None,
+        butterworth_low_freq: float | None = None,
+        butterworth_high_freq: float | None = None,
+        fft_points: int | None = None,
+    ) -> None:
         def _worker() -> None:
             try:
                 self.recording_started.emit()
-                audio, sample_rate = self.audio_runtime.record_seconds(seconds=seconds)
+                audio, sample_rate, recorded_path = self.audio_runtime.record_seconds(seconds=seconds)
                 result = self.inference_service.process_audio(
                     model_name=model_name,
-                    audio_path=f"mic_recording_{seconds:.0f}s.wav",
+                    audio_path=recorded_path,
                     audio=audio,
                     original_sr=sample_rate,
+                    butterworth_order=butterworth_order,
+                    butterworth_low_freq=butterworth_low_freq,
+                    butterworth_high_freq=butterworth_high_freq,
+                    fft_points=fft_points,
                 )
                 self.recording_finished.emit(result)
             except Exception as exc:

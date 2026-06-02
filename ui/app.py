@@ -40,6 +40,13 @@ QLineEdit, QComboBox, QTextEdit, QListWidget {
     border-radius: 10px;
     padding: 8px;
 }
+QSpinBox, QDoubleSpinBox {
+    background: #ffffff;
+    color: #0f172a;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 6px 8px;
+}
 QListWidget::item:selected, QComboBox QAbstractItemView::item:selected {
     background: #dbeafe;
     color: #0f172a;
