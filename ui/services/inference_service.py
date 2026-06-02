@@ -143,6 +143,17 @@ class InferenceService:
         butterworth_params.setdefault("rejection_threshold", rejection_threshold)
         butterworth_params.setdefault("fft_points", fft_points if fft_points is not None else 0)
 
+        # Datos para visualización de reconocimiento
+        profile_vector = np.array(selected_model.get("profile_vector", []), dtype=np.float32)
+        std_energy_vector = np.array(selected_model.get("std_energy_vector", []), dtype=np.float32)
+        model_params = selected_model.get("params", {})
+        low_freq = float(model_params.get("low_freq", effective_low_freq))
+        high_freq = float(model_params.get("high_freq", effective_high_freq))
+        n_bands = len(profile_vector) if len(profile_vector) > 0 else 8
+        
+        from core.maths.fft import FFTProcessor
+        subband_frequencies = FFTProcessor.build_subbands(low_freq, high_freq, n_bands)
+
         return PredictionResult(
             model_name=model_name,
             model_kind=model_kind,
@@ -166,6 +177,11 @@ class InferenceService:
             butterworth_params=butterworth_params,
             original_stats=original_stats,
             filtered_stats=filtered_stats,
+            profile_vector=profile_vector,
+            std_energy_vector=std_energy_vector,
+            subband_frequencies=subband_frequencies,
+            original_band_energies=original_energies,
+            filtered_band_energies=filtered_energies,
         )
 
     def _select_model(self, collection: dict[str, Any], species: str) -> dict[str, Any]:

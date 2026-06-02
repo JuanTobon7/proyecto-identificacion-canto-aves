@@ -33,3 +33,9 @@ class PredictionResult:
     butterworth_params: dict[str, Any] = field(default_factory=dict)
     original_stats: AudioStats = field(default_factory=AudioStats)
     filtered_stats: AudioStats = field(default_factory=AudioStats)
+    # Datos para visualización de reconocimiento
+    profile_vector: np.ndarray = field(default_factory=lambda: np.array([], dtype=np.float32))
+    std_energy_vector: np.ndarray = field(default_factory=lambda: np.array([], dtype=np.float32))
+    subband_frequencies: list[tuple[float, float]] = field(default_factory=list)
+    original_band_energies: np.ndarray = field(default_factory=lambda: np.array([], dtype=np.float32))
+    filtered_band_energies: np.ndarray = field(default_factory=lambda: np.array([], dtype=np.float32))

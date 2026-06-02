@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from io import BytesIO
+from pathlib import Path
 from urllib.request import urlopen
 
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap, QTextCursor
-from PySide6.QtWidgets import QFrame, QLabel, QTextBrowser, QVBoxLayout, QScrollArea
+from PySide6.QtWidgets import QFrame, QLabel, QTextBrowser, QVBoxLayout
 
 from core.dto.cards_bird import BirdInfo
 
@@ -29,7 +30,7 @@ class BirdInfoComponent(QFrame):
         layout.addWidget(self.text)
 
     def _load_image_from_url(self, url: str) -> QPixmap | None:
-        """Descarga y carga una imagen desde una URL."""
+        """Descarga y carga una imagen desde una URL remota."""
         try:
             response = urlopen(url, timeout=5)
             image_data = response.read()
@@ -37,11 +38,44 @@ class BirdInfoComponent(QFrame):
             pixmap.loadFromData(image_data)
             if not pixmap.isNull():
                 # Redimensionar a ancho máximo de 300px manteniendo proporción
-                scaled_pixmap = pixmap.scaledToWidth(300, 1)  # SmoothTransformation
+                scaled_pixmap = pixmap.scaledToWidth(300, Qt.SmoothTransformation)
                 return scaled_pixmap
         except Exception as e:
-            print(f"Error al cargar imagen: {e}")
+            print(f"Error al descargar imagen remota: {e}")
         return None
+
+    def _load_image_from_path(self, image_path: str) -> QPixmap | None:
+        """Carga una imagen desde una ruta local."""
+        try:
+            # Convertir rutas relativas a absolutas desde la raíz del proyecto
+            if image_path.startswith("/") or image_path.startswith("./"):
+                # Limpiar la ruta: quitar / y ./
+                clean_path = image_path.lstrip("/").lstrip("./")
+                # Ruta relativa - buscar desde la raíz del proyecto
+                local_path = Path(__file__).parent.parent.parent / clean_path
+            else:
+                local_path = Path(image_path)
+            
+            if local_path.exists():
+                pixmap = QPixmap(str(local_path))
+                if not pixmap.isNull():
+                    # Redimensionar a ancho máximo de 300px manteniendo proporción
+                    scaled_pixmap = pixmap.scaledToWidth(300, Qt.SmoothTransformation)
+                    return scaled_pixmap
+                else:
+                    print(f"No se pudo cargar la imagen: {local_path}")
+            else:
+                print(f"Archivo de imagen no existe: {local_path}")
+        except Exception as e:
+            print(f"Error al cargar imagen local: {e}")
+        return None
+
+    def _load_image(self, url_or_path: str) -> QPixmap | None:
+        """Carga una imagen desde URL remota o ruta local."""
+        if url_or_path.startswith("http://") or url_or_path.startswith("https://"):
+            return self._load_image_from_url(url_or_path)
+        else:
+            return self._load_image_from_path(url_or_path)
 
     def set_bird_info(self, bird_info: BirdInfo | None) -> None:
         if bird_info is None:
@@ -51,7 +85,7 @@ class BirdInfoComponent(QFrame):
         
         # Cargar y mostrar imagen
         if bird_info.img:
-            pixmap = self._load_image_from_url(bird_info.img)
+            pixmap = self._load_image(bird_info.img)
             if pixmap:
                 self.image_label.setPixmap(pixmap)
             else:

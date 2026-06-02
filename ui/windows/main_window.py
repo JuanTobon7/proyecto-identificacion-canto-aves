@@ -137,7 +137,17 @@ class MainWindow(QMainWindow):
         self.bird_info.set_bird_info(result.bird_info)
         self.signal_plot.set_data(result.original_signal, result.filtered_signal, result.sample_rate)
         self.signal_plot.clear_playback_position()
-        self.spectrum_plot.set_data(result.original_freqs, result.original_magnitude, result.filtered_freqs, result.filtered_magnitude)
+        self.spectrum_plot.set_data(
+            result.original_freqs,
+            result.original_magnitude,
+            result.filtered_freqs,
+            result.filtered_magnitude,
+            profile_vector=result.profile_vector,
+            std_energy_vector=result.std_energy_vector,
+            subband_frequencies=result.subband_frequencies,
+            original_band_energies=result.original_band_energies,
+            filtered_band_energies=result.filtered_band_energies,
+        )
         self.energy_vector.set_data(result.original_energy_vector, result.filtered_energy_vector, result.band_labels)
         self.filter_info.set_parameters(result.butterworth_params)
         self.metrics.set_metrics(result.original_stats.to_dict(), result.filtered_stats.to_dict())
