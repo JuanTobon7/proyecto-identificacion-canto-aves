@@ -8,3 +8,4 @@ __pycache__
 .python-version
 /config/__pycache__
 /core/__pycache__
+reports

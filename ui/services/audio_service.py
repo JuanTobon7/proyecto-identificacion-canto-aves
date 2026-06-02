@@ -8,6 +8,7 @@ import numpy as np
 
 from config.frecuency_bands import FrequencyBands
 from core.audio_converter import AudioConverter
+from core.butterworth_controller import ButterworthController
 from core.dto.audio_stats import AudioStats
 from core.maths.energy_vector import EnergyVector
 from core.maths.fft import FFTProcessor
@@ -101,6 +102,22 @@ class AudioService:
             low_freq=float(params.get("low_freq", 0.0)),
             high_freq=float(params.get("high_freq", 0.0)),
         )
+
+    def preview_butterworth_params(self, audio: np.ndarray, sr: int, model: dict[str, Any], model_kind: str) -> dict[str, Any]:
+        if audio.size == 0 or sr <= 0:
+            return {}
+        if model_kind != "butterworth_collection" and model.get("type") != "butterworth":
+            return dict(model.get("params", {}))
+
+        params = model.get("params", {})
+        controller = ButterworthController(order=int(params.get("order", 4)), filter_type="band")
+        controller.build(signal=audio, sr=sr)
+        if controller.last_params is None:
+            return dict(params)
+
+        detected = controller.last_params.to_dict()
+        detected["source"] = "audio"
+        return detected
 
     @staticmethod
     def _model_band(model: dict[str, Any]) -> tuple[float, float]:

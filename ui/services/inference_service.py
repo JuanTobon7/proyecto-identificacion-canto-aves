@@ -14,6 +14,8 @@ from ui.services.audio_service import AudioService
 
 
 class InferenceService:
+    DEFAULT_REJECTION_THRESHOLD = 0.55
+
     def __init__(self, model_dir: str | Path = "models") -> None:
         self.model_dir = str(model_dir)
         self.models_mgmt = ModelsManagement(base_dir=model_dir)
@@ -72,9 +74,12 @@ class InferenceService:
         if not ranking:
             raise ValueError("El modelo cargado no contiene especies presentes en general_info_aves.json.")
 
-        predicted_species = ranking[0]["species"]
         confidence = self._softmax_confidence(ranking)
-        selected_model = self._select_model(collection, predicted_species)
+        top_species = ranking[0]["species"]
+        selected_model = self._select_model(collection, top_species)
+        rejection_threshold = self._rejection_threshold(collection, selected_model)
+        rejected = confidence < rejection_threshold
+        predicted_species = "Rechazado" if rejected else top_species
 
         filtered = self.audio_service.filter_audio(audio, sample_rate, selected_model, model_kind)
         original_freqs, original_magnitude = self.audio_service.spectrum(audio, sample_rate)
@@ -85,9 +90,13 @@ class InferenceService:
         original_energies = self.audio_service.fft.compute_band_energies(audio, sample_rate, self.audio_service.build_model_subbands(selected_model)[0])
         filtered_energies = self.audio_service.fft.compute_band_energies(filtered, sample_rate, self.audio_service.build_model_subbands(selected_model)[0])
 
-        bird_info = self.bird_repo.get_by_species(predicted_species)
+        bird_info = None if rejected else self.bird_repo.get_by_species(predicted_species)
         original_stats = self.audio_service.compute_stats(audio, sample_rate, original_energies, band_labels)
         filtered_stats = self.audio_service.compute_stats(filtered, sample_rate, filtered_energies, band_labels)
+        butterworth_params = self.audio_service.preview_butterworth_params(audio, sample_rate, selected_model, model_kind)
+        if not butterworth_params:
+            butterworth_params = self._model_parameters(selected_model)
+        butterworth_params.setdefault("rejection_threshold", rejection_threshold)
 
         return PredictionResult(
             model_name=model_name,
@@ -96,6 +105,8 @@ class InferenceService:
             sample_rate=sample_rate,
             predicted_species=predicted_species,
             confidence=confidence,
+            rejection_threshold=rejection_threshold,
+            rejected=rejected,
             ranking=ranking,
             bird_info=bird_info,
             original_signal=audio,
@@ -107,7 +118,7 @@ class InferenceService:
             original_energy_vector=original_vector,
             filtered_energy_vector=filtered_vector,
             band_labels=band_labels,
-            butterworth_params=self._model_parameters(selected_model),
+            butterworth_params=butterworth_params,
             original_stats=original_stats,
             filtered_stats=filtered_stats,
         )
@@ -142,6 +153,23 @@ class InferenceService:
         if denominator <= 0:
             return 0.0
         return float(exp_scores[0] / denominator)
+
+    def _rejection_threshold(self, collection: dict[str, Any], model: dict[str, Any]) -> float:
+        for source in (model, model.get("params", {}), collection):
+            if not isinstance(source, dict):
+                continue
+            candidate = source.get("rejection_threshold")
+            if candidate is None:
+                candidate = source.get("confidence_threshold")
+            if candidate is None:
+                continue
+            try:
+                threshold = float(candidate)
+            except (TypeError, ValueError):
+                continue
+            if threshold > 0:
+                return threshold
+        return self.DEFAULT_REJECTION_THRESHOLD
 
     @staticmethod
     def _model_parameters(model: dict[str, Any]) -> dict[str, Any]:

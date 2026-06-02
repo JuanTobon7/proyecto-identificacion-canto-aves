@@ -19,5 +19,10 @@ class ButterworthInfoComponent(QFrame):
         if not params:
             self.text.setPlainText("Sin parametros disponibles.")
             return
-        lines = [f"{key}: {value}" for key, value in params.items()]
+        lines = []
+        for key, value in params.items():
+            if isinstance(value, float):
+                lines.append(f"{key}: {value:.4f}")
+            else:
+                lines.append(f"{key}: {value}")
         self.text.setPlainText("\n".join(lines))

@@ -127,6 +127,96 @@
           "notas": "Las vocalizaciones contienen componentes agudos que pueden superar los 8 kHz, especialmente durante persecuciones aéreas."
         }
       }
+    },
+    {
+      "nombre_comun_ingles": "Gray-cowled_Wood-Rail",
+      "nombre_comun_espanol": "Rascón cuelligris",
+      "nombre_cientifico": "Aramides cajaneus",
+      "familia": "Rallidae",
+      "orden": "Gruiformes",
+      "descripcion": "Rálido grande de cuerpo robusto, cuello gris, dorso oliva y pecho canela. Patas largas rojizas. Es curioso y a veces se acerca a áreas habitadas.",
+      "distribucion": "Desde Costa Rica hasta el norte de Argentina. En Colombia es común en humedales de tierras bajas y valles interandinos, hasta los 1800 m.",
+      "img": "https://example.org/gray_cowled_wood_rail.jpg",
+      "habitat": [
+        "Manglares",
+        "Bosques ribereños",
+        "Pantanos",
+        "Arrozales"
+      ],
+      "dieta": [
+        "Cangrejos",
+        "Insectos",
+        "Moluscoss",
+        "Pequeños vertebrados",
+        "Semillas"
+      ],
+      "estado_conservacion": "LC - Preocupación menor (IUCN)",
+      "longitud_cm": 38,
+      "peso_g": {
+        "min": 350,
+        "max": 500
+      },
+      "vocalizaciones": {
+        "descripcion": "Canto ruidoso y repetitivo, a menudo en dúo: una serie de 'cac-cac-cac' que aumenta en intensidad. Activo al amanecer y anochecer.",
+        "tipo_vocalización": [
+          "Dúo territorial",
+          "Llamada de alarma",
+          "Llamada de contacto"
+        ],
+        "frecuencias_Hz": {
+          "rango_principal": {
+            "min": 500,
+            "max": 3000
+          },
+          "frecuencia_dominante": 1500,
+          "notas": "Vocalizaciones graves y estridentes, con energía principal por debajo de 2 kHz."
+        }
+      }
+    },
+    {
+      "nombre_comun_ingles": "Smooth-billed_Ani",
+      "nombre_comun_espanol": "Garrapatero común",
+      "nombre_cientifico": "Crotophaga ani",
+      "familia": "Cuculidae",
+      "orden": "Cuculiformes",
+      "descripcion": "Cuculiforme de plumaje negro azulado, pico alto y comprimido lateralmente. Vive en grupos ruidosos y anida comunalmente.",
+      "distribucion": "Desde Florida hasta Argentina. En Colombia es común en tierras bajas de todas las regiones, hasta los 1500 m.",
+      "img": "https://example.org/smooth_billed_ani.jpg",
+      "habitat": [
+        "Sabanas",
+        "Pastizales con arbustos",
+        "Bordes de bosque",
+        "Áreas de cultivo"
+      ],
+      "dieta": [
+        "Insectos",
+        "Garrapatas",
+        "Pequeños reptiles",
+        "Frutos",
+        "Semillas"
+      ],
+      "estado_conservacion": "LC - Preocupación menor (IUCN)",
+      "longitud_cm": 33,
+      "peso_g": {
+        "min": 70,
+        "max": 95
+      },
+      "vocalizaciones": {
+        "descripcion": "Llamada nasal y quejumbrosa 'ee-ee-ee' o un 'cra-cra-cra' áspero. Emiten sonidos en coro cuando están en grupo.",
+        "tipo_vocalización": [
+          "Llamada social",
+          "Llamada de alarma",
+          "Llamada de contacto"
+        ],
+        "frecuencias_Hz": {
+          "rango_principal": {
+            "min": 800,
+            "max": 4000
+          },
+          "frecuencia_dominante": 2200,
+          "notas": "Vocalizaciones nasales, con energía principal entre 1.5 y 3 kHz."
+        }
+      }
     }
   ]
 }

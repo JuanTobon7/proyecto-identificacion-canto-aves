@@ -17,6 +17,8 @@ class PredictionResult:
     sample_rate: int
     predicted_species: str
     confidence: float
+    rejection_threshold: float = 0.0
+    rejected: bool = False
     ranking: list[dict[str, Any]] = field(default_factory=list)
     bird_info: BirdInfo | None = None
     original_signal: np.ndarray = field(default_factory=lambda: np.array([], dtype=np.float32))

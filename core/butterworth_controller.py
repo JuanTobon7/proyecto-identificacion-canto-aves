@@ -40,8 +40,8 @@ class ButterworthController:
     ):
         if filter_type not in ("low", "high", "band"):
             raise ValueError(f"filter_type debe ser 'low', 'high' o 'band', no '{filter_type}'.")
-        if filter_type == "band" and (low_freq is None or high_freq is None):
-            raise ValueError("Para filter_type='band' debes indicar low_freq y high_freq.")
+        if filter_type == "band" and ((low_freq is None) != (high_freq is None)):
+            raise ValueError("Para filter_type='band' debes indicar low_freq y high_freq juntos o dejar ambos en None.")
         if order < 1:
             raise ValueError("El orden del filtro debe ser >= 1.")
         if energy_percentile <= 0 or energy_percentile >= 100:

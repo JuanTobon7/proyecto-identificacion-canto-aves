@@ -36,8 +36,14 @@ class PredictionCardComponent(QFrame):
             self.rank_list.clear()
             return
 
-        self.species_value.setText(result.predicted_species or "--")
-        self.confidence_value.setText(f"{result.confidence * 100:.1f}%")
+        if result.rejected:
+            self.species_value.setText("Rechazado")
+            self.confidence_value.setText(
+                f"{result.confidence * 100:.1f}%  (umbral {result.rejection_threshold * 100:.1f}%)"
+            )
+        else:
+            self.species_value.setText(result.predicted_species or "--")
+            self.confidence_value.setText(f"{result.confidence * 100:.1f}%")
         self.rank_list.clear()
         for item in result.ranking[:5]:
             label = f"{item.get('species', '--')}: {item.get('score', 0.0):.4f}"
