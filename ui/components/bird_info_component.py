@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-from PySide6.QtGui import QTextCursor
-from PySide6.QtWidgets import QFrame, QLabel, QTextBrowser, QVBoxLayout
+from io import BytesIO
+from urllib.request import urlopen
+
+from PySide6.QtGui import QPixmap, QTextCursor
+from PySide6.QtWidgets import QFrame, QLabel, QTextBrowser, QVBoxLayout, QScrollArea
 
 from core.dto.cards_bird import BirdInfo
 
@@ -14,23 +17,54 @@ class BirdInfoComponent(QFrame):
         self.text = QTextBrowser()
         self.text.setOpenExternalLinks(True)
         self.text.setMinimumHeight(240)
+        
+        # Imagen del ave
+        self.image_label = QLabel()
+        self.image_label.setStyleSheet("border-radius: 10px;")
+        self.image_label.setAlignment(self.image_label.alignment() | 0x0001 | 0x0080)  # Center alignment
 
         layout = QVBoxLayout(self)
         layout.addWidget(self.title)
+        layout.addWidget(self.image_label)
         layout.addWidget(self.text)
+
+    def _load_image_from_url(self, url: str) -> QPixmap | None:
+        """Descarga y carga una imagen desde una URL."""
+        try:
+            response = urlopen(url, timeout=5)
+            image_data = response.read()
+            pixmap = QPixmap()
+            pixmap.loadFromData(image_data)
+            if not pixmap.isNull():
+                # Redimensionar a ancho máximo de 300px manteniendo proporción
+                scaled_pixmap = pixmap.scaledToWidth(300, 1)  # SmoothTransformation
+                return scaled_pixmap
+        except Exception as e:
+            print(f"Error al cargar imagen: {e}")
+        return None
 
     def set_bird_info(self, bird_info: BirdInfo | None) -> None:
         if bird_info is None:
             self.text.setHtml("<p>Sin información disponible.</p>")
+            self.image_label.setPixmap(QPixmap())
             return
-        image_html = f'<p><img src="{bird_info.img}" alt="{bird_info.nombre_comun_ingles}" style="max-width: 100%; height: auto; border-radius: 10px;"></p>' if bird_info.img else ""
+        
+        # Cargar y mostrar imagen
+        if bird_info.img:
+            pixmap = self._load_image_from_url(bird_info.img)
+            if pixmap:
+                self.image_label.setPixmap(pixmap)
+            else:
+                self.image_label.setText("No se pudo cargar la imagen")
+        else:
+            self.image_label.setPixmap(QPixmap())
+        
         self.text.setHtml(
             "<div style='font-size: 13px; line-height: 1.5;'>"
             f"<h3 style='margin: 0 0 8px 0;'>{bird_info.nombre_comun_espanol} ({bird_info.nombre_comun_ingles})</h3>"
             f"<p><b>Científico:</b> {bird_info.nombre_cientifico}<br>"
             f"<b>Familia:</b> {bird_info.familia}<br>"
             f"<b>Orden:</b> {bird_info.orden}</p>"
-            f"{image_html}"
             f"<p><b>Descripción:</b> {bird_info.descripcion}</p>"
             f"<p><b>Distribución:</b> {bird_info.distribucion}</p>"
             f"<p><b>Hábitat:</b> {', '.join(bird_info.habitat or [])}</p>"
