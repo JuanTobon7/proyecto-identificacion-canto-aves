@@ -97,7 +97,7 @@ class InferenceService:
         if not ranking:
             raise ValueError("El modelo cargado no contiene especies presentes en general_info_aves.json.")
 
-        confidence = self._softmax_confidence(ranking)
+        confidence = self.confidence_margin(ranking)
         top_species = ranking[0]["species"]
         selected_model = self._select_model(collection, top_species)
         rejection_threshold = self._rejection_threshold(collection, selected_model)
@@ -198,6 +198,17 @@ class InferenceService:
         if denominator <= 0:
             return 0.0
         return float(exp_scores[0] / denominator)
+    
+    @staticmethod
+    def confidence_margin(ranking):
+
+        if len(ranking) < 2:
+            return 1.0
+
+        best = ranking[0]["score"]
+        second = ranking[1]["score"]
+
+        return float(np.clip((best - second) / 0.2, 0, 1))
 
     def _rejection_threshold(self, collection: dict[str, Any], model: dict[str, Any]) -> float:
         for source in (model, model.get("params", {}), collection):

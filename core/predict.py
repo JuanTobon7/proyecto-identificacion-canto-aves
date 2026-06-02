@@ -20,8 +20,8 @@ class Predict:
     La especie con mayor score combinado es la predicción.
     """
 
-    _W_COSINE = 0.6
-    _W_ZSCORE  = 0.4
+    _W_COSINE = 0.9
+    _W_ZSCORE  = 0.1
 
     def __init__(self, model_name: str, model_dir: str):
         self.models_mgmt = ModelsManagement(base_dir=model_dir)

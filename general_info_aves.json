@@ -8,7 +8,7 @@
       "orden": "Passeriformes",
       "descripcion": "Ave insectívora de tamaño mediano, de coloración gris oscura a negruzca. Los machos presentan plumaje más uniforme y las hembras tonos parduzcos. Frecuenta el sotobosque de bosques húmedos tropicales donde busca insectos entre la vegetación densa.",
       "distribucion": "Desde Honduras hasta el norte de Sudamérica. En Colombia es común en regiones húmedas del Caribe, Andes, Pacífico y piedemonte amazónico, generalmente por debajo de los 1800 m.",
-      "img": "https://example.org/dusky_antbird.jpg",
+      "img": "https://cdn.download.ams.birds.cornell.edu/api/v2/asset/238840761/1200",
       "habitat": [
         "Bosque húmedo tropical",
         "Sotobosque denso",
@@ -44,48 +44,6 @@
       }
     },
     {
-      "nombre_comun_ingles": "Olive-gray_Saltator",
-      "nombre_comun_espanol": "Saltador oliváceo gris",
-      "nombre_cientifico": "Saltator olivascens",
-      "familia": "Thraupidae",
-      "orden": "Passeriformes",
-      "descripcion": "Ave robusta de tonos grisáceos y oliváceos, con pico fuerte característico de los saltadores. Se observa sola o en parejas alimentándose en árboles y arbustos.",
-      "distribucion": "Presente en el norte de Sudamérica. En Colombia habita principalmente regiones andinas y piedemontes entre 500 y 2200 m de altitud.",
-      "img": "https://example.org/olive_gray_saltator.jpg",
-      "habitat": [
-        "Bosques montanos",
-        "Bordes de bosque",
-        "Matorrales",
-        "Vegetación secundaria"
-      ],
-      "dieta": [
-        "Frutos",
-        "Semillas",
-        "Insectos"
-      ],
-      "estado_conservacion": "LC - Preocupación menor (IUCN)",
-      "longitud_cm": 20,
-      "peso_g": {
-        "min": 35,
-        "max": 50
-      },
-      "vocalizaciones": {
-        "descripcion": "Canto melodioso compuesto por silbidos claros y frases musicales repetidas. Es una especie vocalmente activa durante las primeras horas del día.",
-        "tipo_vocalización": [
-          "Canto territorial",
-          "Llamada de contacto"
-        ],
-        "frecuencias_Hz": {
-          "rango_principal": {
-            "min": 1500,
-            "max": 6500
-          },
-          "frecuencia_dominante": 3500,
-          "notas": "Los silbidos más energéticos suelen concentrarse entre 2.5 y 4.5 kHz."
-        }
-      }
-    },
-    {
       "nombre_comun_ingles": "White-collared_Swift",
       "nombre_comun_espanol": "Vencejo cuelliblanco",
       "nombre_cientifico": "Streptoprocne zonaris",
@@ -93,7 +51,7 @@
       "orden": "Apodiformes",
       "descripcion": "Gran vencejo de color negro con un conspicuo collar blanco alrededor del cuello. Pasa la mayor parte de su vida en vuelo, formando grupos numerosos sobre bosques, montañas y cuerpos de agua.",
       "distribucion": "Desde México hasta Argentina. En Colombia se encuentra ampliamente distribuido desde tierras bajas hasta zonas montañosas superiores a 3000 m.",
-      "img": "https://example.org/white_collared_swift.jpg",
+      "img": "https://i.pinimg.com/474x/1f/98/65/1f9865d94ab699e73cdca4a30a1b5f8b.jpg",
       "habitat": [
         "Bosques montanos",
         "Acantilados",
@@ -136,7 +94,7 @@
       "orden": "Gruiformes",
       "descripcion": "Rálido grande de cuerpo robusto, cuello gris, dorso oliva y pecho canela. Patas largas rojizas. Es curioso y a veces se acerca a áreas habitadas.",
       "distribucion": "Desde Costa Rica hasta el norte de Argentina. En Colombia es común en humedales de tierras bajas y valles interandinos, hasta los 1800 m.",
-      "img": "https://example.org/gray_cowled_wood_rail.jpg",
+      "img": "https://cdn.download.ams.birds.cornell.edu/api/v2/asset/245276811/900",
       "habitat": [
         "Manglares",
         "Bosques ribereños",
@@ -170,51 +128,6 @@
           },
           "frecuencia_dominante": 1500,
           "notas": "Vocalizaciones graves y estridentes, con energía principal por debajo de 2 kHz."
-        }
-      }
-    },
-    {
-      "nombre_comun_ingles": "Smooth-billed_Ani",
-      "nombre_comun_espanol": "Garrapatero común",
-      "nombre_cientifico": "Crotophaga ani",
-      "familia": "Cuculidae",
-      "orden": "Cuculiformes",
-      "descripcion": "Cuculiforme de plumaje negro azulado, pico alto y comprimido lateralmente. Vive en grupos ruidosos y anida comunalmente.",
-      "distribucion": "Desde Florida hasta Argentina. En Colombia es común en tierras bajas de todas las regiones, hasta los 1500 m.",
-      "img": "https://example.org/smooth_billed_ani.jpg",
-      "habitat": [
-        "Sabanas",
-        "Pastizales con arbustos",
-        "Bordes de bosque",
-        "Áreas de cultivo"
-      ],
-      "dieta": [
-        "Insectos",
-        "Garrapatas",
-        "Pequeños reptiles",
-        "Frutos",
-        "Semillas"
-      ],
-      "estado_conservacion": "LC - Preocupación menor (IUCN)",
-      "longitud_cm": 33,
-      "peso_g": {
-        "min": 70,
-        "max": 95
-      },
-      "vocalizaciones": {
-        "descripcion": "Llamada nasal y quejumbrosa 'ee-ee-ee' o un 'cra-cra-cra' áspero. Emiten sonidos en coro cuando están en grupo.",
-        "tipo_vocalización": [
-          "Llamada social",
-          "Llamada de alarma",
-          "Llamada de contacto"
-        ],
-        "frecuencias_Hz": {
-          "rango_principal": {
-            "min": 800,
-            "max": 4000
-          },
-          "frecuencia_dominante": 2200,
-          "notas": "Vocalizaciones nasales, con energía principal entre 1.5 y 3 kHz."
         }
       }
     }
