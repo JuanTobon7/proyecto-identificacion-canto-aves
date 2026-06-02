@@ -1,0 +1,2 @@
+class AppSettings:
+    CONFIDENCE_REJECTION_THRESHOLD = 0.60

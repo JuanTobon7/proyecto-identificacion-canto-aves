@@ -9,13 +9,12 @@ from core.audio_converter import AudioConverter
 from core.models_managment import ModelsManagement
 from core.predict import Predict
 from core.repo.birds_repo import BirdRepository
+from config.app_settings import AppSettings
 from ui.dtos.prediction_result import PredictionResult
 from ui.services.audio_service import AudioService
 
 
 class InferenceService:
-    DEFAULT_REJECTION_THRESHOLD = 0.55
-
     def __init__(self, model_dir: str | Path = "models") -> None:
         self.model_dir = str(model_dir)
         self.models_mgmt = ModelsManagement(base_dir=model_dir)
@@ -90,7 +89,7 @@ class InferenceService:
         original_energies = self.audio_service.fft.compute_band_energies(audio, sample_rate, self.audio_service.build_model_subbands(selected_model)[0])
         filtered_energies = self.audio_service.fft.compute_band_energies(filtered, sample_rate, self.audio_service.build_model_subbands(selected_model)[0])
 
-        bird_info = None if rejected else self.bird_repo.get_by_species(predicted_species)
+        bird_info = self.bird_repo.get_by_species(top_species)
         original_stats = self.audio_service.compute_stats(audio, sample_rate, original_energies, band_labels)
         filtered_stats = self.audio_service.compute_stats(filtered, sample_rate, filtered_energies, band_labels)
         butterworth_params = self.audio_service.preview_butterworth_params(audio, sample_rate, selected_model, model_kind)
@@ -169,7 +168,7 @@ class InferenceService:
                 continue
             if threshold > 0:
                 return threshold
-        return self.DEFAULT_REJECTION_THRESHOLD
+        return float(AppSettings.CONFIDENCE_REJECTION_THRESHOLD)
 
     @staticmethod
     def _model_parameters(model: dict[str, Any]) -> dict[str, Any]:
