@@ -10,6 +10,15 @@ class Statistics:
     @staticmethod
     def std_vector(vectors: list[np.ndarray]) -> np.ndarray:
         return np.std(vectors, axis=0)
+
+    @staticmethod
+    def absolute_difference(a: np.ndarray, b: np.ndarray) -> float:
+        """
+        Distancia L1 (Manhattan): suma de diferencias absolutas.
+        Según guía: EXC = Σ|EXi - ECi|
+        Retorna la suma de valores absolutos de las diferencias elemento a elemento.
+        """
+        return float(np.sum(np.abs(a - b)))
     
     @staticmethod
     def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
