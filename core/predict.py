@@ -49,14 +49,20 @@ class Predict:
         return best_species
 
     def predict_proba(self, audio: np.ndarray, sr: int) -> list[dict]:
-        """Retorna todas las distancias ordenadas de menor a mayor (mejor primero)."""
+        """Retorna todos los scores ordenados de mayor a menor.
+        Score se calcula como: score = 1 / (1 + distancia_L1)
+        Mayor score = menor distancia = mejor match.
+        """
         audio = self._prepare(audio, sr)
 
-        results = [
-            {"species": m["species"], "distance": float(self._compute_distance(audio, m))}
-            for m in self._models
-        ]
-        results.sort(key=lambda x: x["distance"], reverse=False)
+        results = []
+        for m in self._models:
+            distance = self._compute_distance(audio, m)
+            # Convertir distancia a score: 0 distancia → score=1, infinita distancia → score≈0
+            score = 1.0 / (1.0 + distance)
+            results.append({"species": m["species"], "score": float(score)})
+        
+        results.sort(key=lambda x: x["score"], reverse=True)
         return results
 
     # ------------------------------------------------------------------
