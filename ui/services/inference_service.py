@@ -97,7 +97,7 @@ class InferenceService:
         if not ranking:
             raise ValueError("El modelo cargado no contiene especies presentes en general_info_aves.json.")
 
-        confidence = self.confidence_margin(ranking)
+        confidence = self.confidence_hybrid(ranking)
         top_species = ranking[0]["species"]
         selected_model = self._select_model(collection, top_species)
         rejection_threshold = self._rejection_threshold(collection, selected_model)
@@ -202,6 +202,18 @@ class InferenceService:
             if model.get("sr"):
                 return int(model["sr"])
         return 0
+
+    @staticmethod
+    def confidence_hybrid(ranking: list[dict]) -> float:
+        """
+        Confianza simple: usa el score del mejor candidato directamente.
+        Score ya está normalizado en [0, 1] por la fórmula: score = 1 / (1 + distancia_L1)
+        """
+        if not ranking:
+            return 0.0
+        
+        best_score = float(ranking[0].get("score", 0.0))
+        return float(np.clip(best_score, 0.0, 1.0))
 
     @staticmethod
     def confidence_margin(ranking):
