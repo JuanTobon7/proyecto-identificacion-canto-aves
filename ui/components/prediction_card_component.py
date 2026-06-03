@@ -40,5 +40,8 @@ class PredictionCardComponent(QFrame):
         self.confidence_value.setText(f"{result.confidence * 100:.1f}%")
         self.rank_list.clear()
         for item in result.ranking[:5]:
-            label = f"{item.get('species', '--')}: {item.get('score', 0.0):.4f}"
+            species = item.get('species', '--')
+            score = item.get('score', 0.0)
+            distance = item.get('distance', 0.0)
+            label = f"{species}: score={score:.4f} | dist={distance:.4f}"
             self.rank_list.addItem(QListWidgetItem(label))
