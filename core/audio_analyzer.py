@@ -395,8 +395,12 @@ class AudioAnalyzer:
                     post_peak = float(np.max(np.abs(y_filtered))) if y_filtered.size else 0.0
                     print(f"  [DEBUG] pre_peak={pre_peak:.6f}, post_peak={post_peak:.6f}")
 
-                    # Guardar audio filtrado sin normalizar
-                    y_out = y_filtered.astype(np.float32)
+                    # Normalize output to avoid clipping when writing
+                    peak = post_peak
+                    if peak > 0:
+                        y_out = (y_filtered / peak * 0.99).astype(np.float32)
+                    else:
+                        y_out = y_filtered.astype(np.float32)
 
                     output_path = output_dir / fpath.name
 
