@@ -3,13 +3,20 @@
   "model_type": "filterbank_butterworth",
   "bands": 8,
   "sample_rate": 22050,
-  "created_at": "2026-06-02T13:56:55.910529+00:00",
+  "created_at": "2026-06-02T22:31:31.119534+00:00",
   "models": [
     {
       "species": "Dusky_Antbird",
       "params": {
-        "low_freq": 1800.0,
-        "high_freq": 5000.0,
+        "frecuencia_de_muestreo_hz": 22050,
+        "frecuencia_de_corte_baja_hz": 1800.0,
+        "frecuencia_de_corte_alta_hz": 5000.0,
+        "numero_de_bandas": 8,
+        "ancho_de_banda_total_hz": 3200.0,
+        "ancho_de_banda_por_banda_hz": 400.0,
+        "teorema_nyquist_hz": 11025.0,
+        "bajo_nyquist": true,
+        "alto_dentro_nyquist": true,
         "order": 4,
         "type": "butterworth"
       },
@@ -37,8 +44,15 @@
     {
       "species": "White-collared_Swift",
       "params": {
-        "low_freq": 2500.0,
-        "high_freq": 9000.0,
+        "frecuencia_de_muestreo_hz": 22050,
+        "frecuencia_de_corte_baja_hz": 2500.0,
+        "frecuencia_de_corte_alta_hz": 9000.0,
+        "numero_de_bandas": 8,
+        "ancho_de_banda_total_hz": 6500.0,
+        "ancho_de_banda_por_banda_hz": 812.5,
+        "teorema_nyquist_hz": 11025.0,
+        "bajo_nyquist": true,
+        "alto_dentro_nyquist": true,
         "order": 4,
         "type": "butterworth"
       },
@@ -66,8 +80,15 @@
     {
       "species": "Gray-cowled_Wood-Rail",
       "params": {
-        "low_freq": 500.0,
-        "high_freq": 3000.0,
+        "frecuencia_de_muestreo_hz": 22050,
+        "frecuencia_de_corte_baja_hz": 500.0,
+        "frecuencia_de_corte_alta_hz": 3000.0,
+        "numero_de_bandas": 8,
+        "ancho_de_banda_total_hz": 2500.0,
+        "ancho_de_banda_por_banda_hz": 312.5,
+        "teorema_nyquist_hz": 11025.0,
+        "bajo_nyquist": true,
+        "alto_dentro_nyquist": true,
         "order": 4,
         "type": "butterworth"
       },

@@ -21,7 +21,6 @@ class FFTProcessor:
         # FFT positiva
         fft_vals = np.fft.rfft(y)
 
-        # Magnitud normalizada
         magnitude = np.abs(fft_vals) / n
 
         # Vector de frecuencias
