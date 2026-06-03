@@ -14,6 +14,7 @@ from core.maths.energy_vector import EnergyVector
 from core.maths.fft import FFTProcessor
 from core.maths.filter_butterworth import FilterButterworth
 from core.maths.filter_fir import FilterFir
+from core.maths.dynamic_bands_detector import DynamicBandsDetector
 
 
 class AudioService:
@@ -177,6 +178,28 @@ class AudioService:
             if high > low:
                 normalized.append((low, high))
         return normalized
+    def detect_audio_subbands(
+        self,
+        audio: np.ndarray,
+        sr: int,
+        model: dict[str, Any],
+    ) -> tuple[list[tuple[float, float]], list[str]]:
+        """
+        Detecta subbandas dinámicas basadas en el contenido del audio analizado.
+        Devuelve las subbandas y sus etiquetas.
+        """
+        low_freq, high_freq = self._model_band(model)
+        profile_vector = np.asarray(model.get("profile_vector", []), dtype=np.float32)
+        n_bands = max(1, int(profile_vector.size))
+
+        # Detectar subbandas dinámicas del audio
+        bands = DynamicBandsDetector.detect_bands_from_audio(
+            audio, sr, low_freq, high_freq, n_bands
+        )
+
+        labels = [f"{int(low)}-{int(high)}Hz" for low, high in bands]
+        return bands, labels
+
     @staticmethod
     def _max_run(mask: np.ndarray) -> int:
         max_run = 0

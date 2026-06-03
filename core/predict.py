@@ -3,6 +3,7 @@ from core.maths.fft import FFTProcessor
 from core.maths.statistics import Statistics
 from core.maths.energy_vector import EnergyVector
 from core.maths.filter_butterworth import FilterButterworth
+from core.maths.dynamic_bands_detector import DynamicBandsDetector
 from core.audio_converter import AudioConverter
 
 import numpy as np
@@ -79,37 +80,57 @@ class Predict:
 
     def _compute_distance(self, audio: np.ndarray, model: dict) -> float:
         """
-        Calcula la distancia L1 (suma de diferencias absolutas) entre el vector de energía
-        del audio y el perfil del modelo.
-        
-        Según la guía:
-          EX = [EX1 EX2 ... EXn]  (vector de energía del audio)
-          EC = [EC1 EC2 ... ECn]  (perfil de la clase)
-          EXC = Σ|EXi - ECi|  (distancia a minimizar)
-        
-        Retorna la distancia L1 (a menor distancia, mejor match).
+        Calcula similitud combinada usando:
+        1. Distancia L1 normalizada
+        2. Z-score similarity con desviaciones estándar
+
+        Retorna una puntuación combinada (mayor es mejor).
         """
         params   = model["params"]
         low_freq = params["low_freq"]
         high_freq = params["high_freq"]
         profile  = np.array(model["profile_vector"], dtype=np.float64)
+        std_profile = np.array(model.get("std_energy_vector", np.ones_like(profile)), dtype=np.float64)
         n_bands  = len(profile)
 
         try:
             filtered = self.butterworth.apply_bandpass(audio, self._sample_rate, low_freq, high_freq)
         except ValueError:
-            return np.inf
+            return -np.inf
 
-        sub_bands = FFTProcessor.build_subbands(
-            low_freq,
-            high_freq,
-            n_bands,
-            dynamic_bands=model.get("dynamic_bands"),
+        # Detectar subbandas dinámicas del audio analizado
+        audio_bands = DynamicBandsDetector.detect_bands_from_audio(
+            filtered, self._sample_rate, low_freq, high_freq, n_bands
         )
-        energies    = FFTProcessor.compute_band_energies(filtered, self._sample_rate, sub_bands)
-        energy_vec  = EnergyVector.compute(energies).astype(np.float64)
 
-        # Calcular distancia L1: Σ|EXi - ECi|
-        distance = Statistics.absolute_difference(energy_vec, profile)
+        # Calcular energías en las subbandas dinámicas del audio
+        energies = FFTProcessor.compute_band_energies(filtered, self._sample_rate, audio_bands)
+        energy_vec = EnergyVector.compute(energies).astype(np.float64)
 
-        return distance
+        # Si el número de bandas detectadas no coincide con el perfil, interpolar
+        if len(energy_vec) != len(profile):
+            energy_vec = self._interpolate_energy_vector(energy_vec, len(profile))
+
+        # Calcular distancia L1 normalizada (convertir a similitud)
+        l1_distance = Statistics.absolute_difference(energy_vec, profile)
+        l1_similarity = 1.0 / (1.0 + l1_distance)
+
+        # Calcular Z-score similarity usando desviaciones estándar
+        zscore_sim = Statistics.zscore_similarity(energy_vec, profile, std_profile)
+
+        # Combinar ambas métricas (promedio ponderado)
+        # L1 tiene peso 0.6 y zscore tiene peso 0.4
+        combined_score = (0.6 * l1_similarity) + (0.4 * zscore_sim)
+
+        # Retornar como "distancia invertida" (negativa para minimización)
+        return -combined_score
+
+    def _interpolate_energy_vector(self, vec: np.ndarray, target_len: int) -> np.ndarray:
+        """
+        Interpola un vector de energía a la longitud objetivo.
+        """
+        if len(vec) == target_len:
+            return vec
+        x_old = np.linspace(0, 1, len(vec))
+        x_new = np.linspace(0, 1, target_len)
+        return np.interp(x_new, x_old, vec)
