@@ -27,7 +27,7 @@ from core.maths.energy_vector import EnergyVector
 from core.maths.filter_butterworth import FilterButterworth
 from core.maths.filter_fir import FilterFir
 from core.audio_converter import AudioConverter
-
+from core.maths.dynamic_bands_detector import DynamicBandsDetector
 
 def _load_species_analysis(analysis_path: Path, species: str) -> dict[str, Any] | None:
     if not analysis_path.exists():
@@ -44,25 +44,6 @@ def _load_species_analysis(analysis_path: Path, species: str) -> dict[str, Any] 
         if entry.get("species") == species:
             return entry
     return None
-
-
-def _load_dynamic_bands_for_species(analysis_path: Path, species: str) -> list[tuple[float, float]] | None:
-    entry = _load_species_analysis(analysis_path, species)
-    if not entry:
-        return None
-
-    bands = entry.get("dynamic_bands", [])
-    normalized: list[tuple[float, float]] = []
-    for band in bands:
-        try:
-            low = float(band["low"])
-            high = float(band["high"])
-        except (KeyError, TypeError, ValueError):
-            continue
-        if high > low:
-            normalized.append((low, high))
-
-    return normalized or None
 
 
 def _bands_to_json(bands: list[tuple[float, float]] | None) -> list[dict[str, float]]:
@@ -267,7 +248,13 @@ def main():
 
         bird = repo.get_by_species(species)
         analysis_entry = _load_species_analysis(analysis_path, species)
-        dynamic_bands = _load_dynamic_bands_for_species(analysis_path, species)
+        
+        dynamic_bands = DynamicBandsDetector.detect_bands_from_audio(files[0], 
+            int(args.sample_rate), 
+            float(bird.vocalizaciones.frecuencias_hz.rango_principal.min), 
+            float(bird.vocalizaciones.frecuencias_hz.rango_principal.max), 
+            n_bands=int(args.bands))
+        
         if dynamic_bands:
             print(f"  - usando {len(dynamic_bands)} bandas dinámicas desde {analysis_path.name}")
         else:

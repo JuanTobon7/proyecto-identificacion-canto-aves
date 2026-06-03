@@ -1,10 +1,12 @@
 import numpy as np
-from core.maths.fft import FFTProcessor
+from scipy.signal import stft
+from scipy.ndimage import gaussian_filter1d
 
 
 class DynamicBandsDetector:
     """
-    Detecta subbandas dinámicas del audio basadas en cambios de energía espectral.
+    Detecta subbandas dinámicas usando la distribución de energía
+    del espectro promedio del audio.
     """
 
     @staticmethod
@@ -14,103 +16,94 @@ class DynamicBandsDetector:
         low_freq: float,
         high_freq: float,
         n_bands: int = 8,
-        percentile_threshold: float = 30.0,
+        smoothing_sigma: float = 3.0,
     ) -> list[tuple[float, float]]:
         """
-        Detecta automáticamente subbandas dinámicas del audio analizado.
+        Genera exactamente n_bands bandas adaptativas.
 
-        Divide la banda [low_freq, high_freq] en n_bands iniciales,
-        luego detecta los puntos de máxima energía y ajusta los límites.
-
-        Args:
-            audio: señal de audio
-            sr: sample rate
-            low_freq, high_freq: rango de frecuencias
-            n_bands: número de subbandas a crear
-            percentile_threshold: percentil para detectar transiciones
-
-        Returns:
-            Lista de tuplas (low, high) con las subbandas detectadas
+        Cada banda contiene aproximadamente la misma cantidad
+        de energía espectral.
         """
-        # Crear subbandas iniciales uniformes
-        initial_bands = FFTProcessor.build_subbands(low_freq, high_freq, n_bands, None)
 
-        # Calcular energía en cada banda inicial
-        energies = FFTProcessor.compute_band_energies(audio, sr, initial_bands)
+        # Espectrograma
+        freqs, _, zxx = stft(
+            audio,
+            fs=sr,
+            nperseg=1024,
+            noverlap=512
+        )
 
-        if np.sum(energies) == 0:
-            return initial_bands
+        # Magnitud promedio
+        spectrum = np.mean(np.abs(zxx), axis=1)
 
-        # Normalizar energías
-        norm_energies = energies / np.sum(energies)
+        # Limitar al rango de interés
+        mask = (freqs >= low_freq) & (freqs <= high_freq)
 
-        # Detectar transiciones de energía
-        diffs = np.abs(np.diff(norm_energies))
-        threshold = np.percentile(diffs, percentile_threshold)
+        freqs = freqs[mask]
+        spectrum = spectrum[mask]
 
-        # Puntos donde hay cambios significativos
-        transitions = np.where(diffs > threshold)[0]
+        if len(freqs) < 2:
+            return [(low_freq, high_freq)]
 
-        if len(transitions) == 0:
-            return initial_bands
+        # Suavizar para eliminar fluctuaciones pequeñas
+        spectrum = gaussian_filter1d(
+            spectrum,
+            sigma=smoothing_sigma
+        )
 
-        # Construir nuevas subbandas basadas en transiciones
+        total_energy = np.sum(spectrum)
+
+        if total_energy <= 0:
+            step = (high_freq - low_freq) / n_bands
+
+            return [
+                (
+                    low_freq + i * step,
+                    low_freq + (i + 1) * step
+                )
+                for i in range(n_bands)
+            ]
+
+        # Energía acumulada normalizada
+        cumulative = np.cumsum(spectrum)
+        cumulative /= cumulative[-1]
+
+        # Bordes de cuantiles
         band_edges = [low_freq]
 
-        for trans_idx in transitions:
-            # Usar el punto medio entre bandas que transicionan
-            edge = (initial_bands[trans_idx][1] + initial_bands[trans_idx + 1][0]) / 2.0
-            if band_edges[-1] < edge < high_freq:
-                band_edges.append(edge)
+        for i in range(1, n_bands):
+            target = i / n_bands
+
+            idx = np.searchsorted(
+                cumulative,
+                target
+            )
+
+            idx = min(idx, len(freqs) - 1)
+
+            band_edges.append(
+                float(freqs[idx])
+            )
 
         band_edges.append(high_freq)
 
-        # Agrupar subbandas si hay demasiadas
-        dynamic_bands = [(band_edges[i], band_edges[i + 1])
-                        for i in range(len(band_edges) - 1)]
+        # Construcción de bandas
+        bands = []
 
-        # Si tenemos menos de n_bands, expandir; si más, consolidar
-        if len(dynamic_bands) < 3:
-            return initial_bands
-        if len(dynamic_bands) > n_bands:
-            dynamic_bands = DynamicBandsDetector._consolidate_bands(
-                dynamic_bands, n_bands
-            )
+        for i in range(len(band_edges) - 1):
+            low = band_edges[i]
+            high = band_edges[i + 1]
 
-        return dynamic_bands
+            if high > low:
+                bands.append((low, high))
+
+        return bands
 
     @staticmethod
-    def _consolidate_bands(
-        bands: list[tuple[float, float]],
-        target_count: int
-    ) -> list[tuple[float, float]]:
-        """
-        Consolida bandas a un número objetivo agrupándolas.
-        """
-        if len(bands) <= target_count:
-            return bands
-
-        consolidated = []
-        bands_per_group = len(bands) / target_count
-
-        for i in range(target_count):
-            start_idx = int(i * bands_per_group)
-            end_idx = int((i + 1) * bands_per_group)
-
-            if start_idx >= len(bands):
-                break
-            if end_idx > len(bands):
-                end_idx = len(bands)
-
-            low = bands[start_idx][0]
-            high = bands[end_idx - 1][1]
-            consolidated.append((low, high))
-
-        return consolidated
-
-    @staticmethod
-    def get_band_labels(bands: list[tuple[float, float]]) -> list[str]:
-        """
-        Genera etiquetas legibles para las subbandas.
-        """
-        return [f"{int(low)}-{int(high)}Hz" for low, high in bands]
+    def get_band_labels(
+        bands: list[tuple[float, float]]
+    ) -> list[str]:
+        return [
+            f"{int(low)}-{int(high)}Hz"
+            for low, high in bands
+        ]

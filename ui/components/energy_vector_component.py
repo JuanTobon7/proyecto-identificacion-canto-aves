@@ -26,7 +26,7 @@ class EnergyVectorComponent(QFrame):
         self.figure.clear()
 
         # Use comparison_profiles if available, otherwise use current + labels
-        if comparison_profiles:
+        if comparison_profiles and len(comparison_profiles) > 0:
             num_subplots = len(comparison_profiles)
             profiles_to_plot = comparison_profiles
         else:
@@ -37,10 +37,12 @@ class EnergyVectorComponent(QFrame):
                 "band_labels": labels,
             }]
 
-        # Create subplots
-        self.axes = self.figure.subplots(1, num_subplots, sharey=True) if num_subplots > 1 else [self.figure.add_subplot(111)]
-        if not isinstance(self.axes, list):
-            self.axes = [self.axes]
+        # Create subplots ensuring axes is always a list
+        if num_subplots > 1:
+            axes_result = self.figure.subplots(1, num_subplots, sharey=True)
+            self.axes = list(axes_result) if isinstance(axes_result, np.ndarray) else [axes_result]
+        else:
+            self.axes = [self.figure.add_subplot(111)]
 
         colors_species = ["#2563eb", "#f97316", "#16a34a", "#8b5cf6", "#ef4444", "#0f766e"]
 
@@ -66,7 +68,7 @@ class EnergyVectorComponent(QFrame):
             ax.set_xticklabels(band_labels, rotation=35, ha="right", fontsize=8, color="#334155")
 
             # Set title
-            if idx == 0 and comparison_profiles:
+            if idx == 0 and comparison_profiles and len(comparison_profiles) > 0:
                 ax.set_title(f"{species}\n(tiempo real)", color="#0f172a", fontsize=9, fontweight="bold")
             else:
                 ax.set_title(f"{species}", color="#0f172a", fontsize=9, fontweight="bold")
