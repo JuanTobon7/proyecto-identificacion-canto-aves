@@ -22,6 +22,7 @@ from core.birds_data_loader import BirdDataLoader
 from core.maths.dynamic_bands_detector import DynamicBandsDetector
 from core.maths.energy_vector import EnergyVector
 from core.maths.fft import FFTProcessor
+from core.maths.filter_butterworth import FilterButterworth
 
 
 WHITE_STYLE = {
@@ -73,8 +74,12 @@ def analyze_species(
 ) -> dict:
     """Analiza una especie y retorna espectro, subbandas y energía."""
     spectrum_values: list[np.ndarray] = []
+    filtered_spectrum_values: list[np.ndarray] = []
     energy_values: list[np.ndarray] = []
     freq_grid: np.ndarray | None = None
+
+    # Crear filtro butterworth
+    butterworth = FilterButterworth(order=4)
 
     for audio_path in audio_paths[:10]:  # Usar máximo 10 archivos
         try:
@@ -85,12 +90,21 @@ def analyze_species(
         if audio.size == 0 or sr <= 0:
             continue
 
+        # Espectro sin filtrar
         current_freq_grid, spectrum = compute_average_spectrum(audio, sr, fft_points)
         if current_freq_grid.size == 0:
             continue
 
         freq_grid = current_freq_grid
         spectrum_values.append(spectrum)
+
+        # Espectro filtrado
+        try:
+            filtered_audio = butterworth.apply_bandpass(audio, sr, low_freq, high_freq)
+            _, filtered_spectrum = compute_average_spectrum(filtered_audio, sr, fft_points)
+            filtered_spectrum_values.append(filtered_spectrum)
+        except Exception:
+            filtered_spectrum_values.append(spectrum)
 
         # Detectar subbandas dinámicas
         dynamic_bands = DynamicBandsDetector.detect_bands_from_audio(
@@ -104,12 +118,14 @@ def analyze_species(
         return {
             "freq_grid": np.array([], dtype=np.float64),
             "mean_spectrum": np.array([], dtype=np.float64),
+            "mean_filtered_spectrum": np.array([], dtype=np.float64),
             "dynamic_bands": [],
             "band_labels": [],
             "mean_energy": np.array([], dtype=np.float64),
         }
 
     spectrum_stack = np.vstack(spectrum_values)
+    filtered_spectrum_stack = np.vstack(filtered_spectrum_values)
     energy_stack = np.vstack(energy_values)
 
     # Usar primeras bandas dinámicas como referencia
@@ -130,6 +146,7 @@ def analyze_species(
     return {
         "freq_grid": freq_grid,
         "mean_spectrum": spectrum_stack.mean(axis=0),
+        "mean_filtered_spectrum": filtered_spectrum_stack.mean(axis=0),
         "dynamic_bands": dynamic_bands,
         "band_labels": band_labels,
         "mean_energy": energy_stack.mean(axis=0),
@@ -157,19 +174,36 @@ def plot_comparison(
     for idx, (species_name, data) in enumerate(species_data.items()):
         freq_grid = data["freq_grid"]
         mean_spectrum = data["mean_spectrum"]
+        mean_filtered_spectrum = data.get("mean_filtered_spectrum", np.array([]))
 
         if freq_grid.size == 0 or mean_spectrum.size == 0:
             continue
 
         color = colors[idx % len(colors)]
+
+        # Espectro sin filtrar (línea sólida)
         ax_spectrum.plot(
             freq_grid,
             mean_spectrum,
             color=color,
             linewidth=2.5,
-            label=species_name,
+            label=f"{species_name} (sin filtro)",
             alpha=0.85,
+            linestyle="-",
         )
+
+        # Espectro filtrado (línea punteada)
+        if mean_filtered_spectrum.size > 0:
+            ax_spectrum.plot(
+                freq_grid,
+                mean_filtered_spectrum,
+                color=color,
+                linewidth=2.0,
+                label=f"{species_name} (filtrado)",
+                alpha=0.6,
+                linestyle="--",
+            )
+
         max_freq = max(max_freq, float(freq_grid.max()))
 
         # Mostrar subbandas
