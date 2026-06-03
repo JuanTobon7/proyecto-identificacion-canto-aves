@@ -193,6 +193,122 @@ def plot_species_report(
     plt.close(fig)
 
 
+def plot_combined_spectra(
+    species_summaries: dict[str, dict[str, np.ndarray]],
+    output_path: Path,
+) -> None:
+    """
+    Crea una única gráfica con los espectros promedio de todas las aves.
+    Permite zoom interactivo en horizontal.
+    """
+    if not species_summaries:
+        return
+
+    plt.style.use("default")
+    plt.rcParams.update(WHITE_STYLE)
+
+    fig, ax = plt.subplots(figsize=(16, 8), constrained_layout=True)
+    fig.patch.set_facecolor("white")
+
+    colors = [
+        "#1d4ed8", "#dc2626", "#059669", "#d97706", "#7c3aed",
+        "#0891b2", "#ea580c", "#4f46e5", "#be185d", "#16a34a"
+    ]
+
+    for idx, (species_name, summary) in enumerate(species_summaries.items()):
+        freq_grid = summary["freq_grid"]
+        mean_spectrum = summary["mean_spectrum"]
+        std_spectrum = summary["std_spectrum"]
+
+        if freq_grid.size == 0 or mean_spectrum.size == 0:
+            continue
+
+        color = colors[idx % len(colors)]
+        ax.plot(freq_grid, mean_spectrum, color=color, linewidth=2.0, label=species_name, alpha=0.85)
+        ax.fill_between(
+            freq_grid,
+            np.maximum(mean_spectrum - std_spectrum, 0.0),
+            mean_spectrum + std_spectrum,
+            color=color,
+            alpha=0.12,
+        )
+
+    ax.set_title("Espectro promedio de todas las aves", fontsize=14, fontweight="bold")
+    ax.set_xlabel("Frecuencia (Hz)", fontsize=11)
+    ax.set_ylabel("Magnitud", fontsize=11)
+    ax.grid(True, linestyle="--", linewidth=0.7, alpha=0.6)
+    ax.set_ylim(bottom=0.0)
+    ax.legend(loc="upper right", fontsize=9, ncol=2)
+
+    # Permitir zoom interactivo
+    ax.set_xlim(0, max([float(s["freq_grid"].max()) for s in species_summaries.values() if s["freq_grid"].size > 0]))
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, dpi=180, facecolor=fig.get_facecolor(), bbox_inches="tight")
+    plt.close(fig)
+    print(f"[ok] Gráfica combinada -> {output_path}")
+
+
+def create_energy_table(
+    species_summaries: dict[str, dict[str, np.ndarray]],
+    output_path: Path,
+) -> None:
+    """
+    Crea una tabla CSV con subbandas y energías para cada ave.
+    """
+    if not species_summaries:
+        return
+
+    import csv
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(output_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+
+        # Encabezado
+        header = ["Subbanda"]
+        for species_name in species_summaries.keys():
+            header.extend([f"{species_name} (Energía)", f"{species_name} (±Desv)"])
+        writer.writerow(header)
+
+        # Obtener el número máximo de bandas
+        max_bands = max(
+            len(summary["bands"]) for summary in species_summaries.values()
+            if summary["bands"].size > 0
+        )
+
+        # Filas de datos
+        for band_idx in range(max_bands):
+            row = []
+
+            # Primera columna: nombre de la subbanda
+            first_summary = next(
+                summary for summary in species_summaries.values()
+                if summary["bands"].size > 0
+            )
+            if band_idx < len(first_summary["bands"]):
+                row.append(first_summary["bands"][band_idx])
+            else:
+                row.append(f"Banda {band_idx + 1}")
+
+            # Datos de energía por especie
+            for species_name, summary in species_summaries.items():
+                mean_energy = summary["mean_energy"]
+                std_energy = summary["std_energy"]
+
+                if band_idx < len(mean_energy):
+                    row.append(f"{mean_energy[band_idx]:.4f}")
+                    row.append(f"{std_energy[band_idx]:.4f}")
+                else:
+                    row.append("N/A")
+                    row.append("N/A")
+
+            writer.writerow(row)
+
+    print(f"[ok] Tabla de energías -> {output_path}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Genera gráficos blancos de espectro promedio y vector de energía por especie."
@@ -239,6 +355,8 @@ def main() -> int:
     species_filter = set(args.species) if args.species else None
 
     generated = 0
+    species_summaries = {}
+
     for bird in birds:
         species_name = bird.nombre_comun_ingles
         if species_filter and species_name not in species_filter:
@@ -261,6 +379,9 @@ def main() -> int:
             fft_points=max(128, int(args.fft_points)),
         )
 
+        if summary["freq_grid"].size > 0:
+            species_summaries[species_name] = summary
+
         output_path = output_dir / f"{sanitize_filename(species_name)}_average_spectrum_energy.png"
         plot_species_report(species_name, summary, output_path)
 
@@ -270,7 +391,16 @@ def main() -> int:
         else:
             print(f"[skip] {species_name}: no se pudo generar gráfico")
 
-    print(f"Generados {generated} gráficos en {output_dir}")
+    # Generar gráfica combinada
+    if species_summaries:
+        combined_output = output_dir / "all_species_combined_spectra.png"
+        plot_combined_spectra(species_summaries, combined_output)
+
+        # Generar tabla de energías
+        table_output = output_dir / "energy_table.csv"
+        create_energy_table(species_summaries, table_output)
+
+    print(f"Generados {generated} gráficos individuales en {output_dir}")
     return 0
 
 

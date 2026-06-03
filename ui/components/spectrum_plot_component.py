@@ -16,8 +16,48 @@ class SpectrumPlotComponent(QFrame):
         self.axes = self.figure.subplots(2, 1, sharex=False)
         self.figure.subplots_adjust(hspace=0.48, left=0.09, right=0.98, top=0.94, bottom=0.10)
 
+        # Almacenar datos originales para zoom
+        self._original_xlim = None
+        self._zoom_level = 1.0
+
+        # Conectar eventos de scroll para zoom
+        self.canvas.mpl_connect("scroll_event", self._on_scroll)
+
         layout = QVBoxLayout(self)
         layout.addWidget(self.canvas)
+
+    def _on_scroll(self, event) -> None:
+        """Maneja scroll para zoom horizontal."""
+        if event.inaxes not in self.axes or event.button not in ["up", "down"]:
+            return
+
+        # Obtener el rango actual del eje X
+        cur_xlim = event.inaxes.get_xlim()
+        cur_width = cur_xlim[1] - cur_xlim[0]
+
+        # Calcular nuevo rango
+        if event.button == "up":
+            self._zoom_level *= 0.8
+        elif event.button == "down":
+            self._zoom_level *= 1.2
+
+        # Posición del mouse en coordenadas de datos
+        xdata = event.xdata
+        if xdata is None:
+            return
+
+        # Nuevo ancho basado en zoom
+        new_width = cur_width / self._zoom_level
+        new_xlim = [xdata - (xdata - cur_xlim[0]) * (new_width / cur_width),
+                    xdata + (cur_xlim[1] - xdata) * (new_width / cur_width)]
+
+        # Limitar a los bordes originales
+        if self._original_xlim:
+            new_xlim[0] = max(new_xlim[0], self._original_xlim[0])
+            new_xlim[1] = min(new_xlim[1], self._original_xlim[1])
+
+        event.inaxes.set_xlim(new_xlim)
+        self.canvas.draw_idle()
 
     def set_data(
         self,
@@ -76,7 +116,9 @@ class SpectrumPlotComponent(QFrame):
             max_freq = float(np.max(filtered_freqs))
             self.axes[0].set_xlim(0, max_freq)
             self.axes[1].set_xlim(0, max_freq)
+            self._original_xlim = (0, max_freq)
 
+        self._zoom_level = 1.0
         self.figure.subplots_adjust(hspace=0.48, left=0.09, right=0.98, top=0.94, bottom=0.10)
         self.canvas.draw_idle()
 
