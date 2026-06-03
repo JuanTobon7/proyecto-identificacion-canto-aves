@@ -84,9 +84,9 @@ class SpectrumPlotComponent(QFrame):
     def _plot_subband_lines(self, axis, subband_frequencies: list[tuple[float, float]]) -> None:
         color_lines = "#1d4ed8"
         for low_freq, high_freq in subband_frequencies:
-            axis.axvline(low_freq, color=color_lines, linestyle=":", linewidth=0.85, alpha=0.45)
+            axis.axvline(low_freq, color=color_lines, linestyle="-", linewidth=1.2, alpha=0.55)
         if subband_frequencies:
-            axis.axvline(subband_frequencies[-1][1], color=color_lines, linestyle=":", linewidth=0.85, alpha=0.45)
+            axis.axvline(subband_frequencies[-1][1], color=color_lines, linestyle="-", linewidth=1.2, alpha=0.55)
 
     @staticmethod
     def _normalize_magnitude(magnitude: np.ndarray) -> np.ndarray:

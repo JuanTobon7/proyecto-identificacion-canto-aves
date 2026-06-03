@@ -153,6 +153,10 @@ class InferenceService:
             top_species,
         )
         comparison_energy_profiles = self._build_energy_comparisons(collection, selected_model, top_species)
+        # Add band labels from selected model to first comparison profile
+        if comparison_energy_profiles and not comparison_energy_profiles[0].get("band_labels"):
+            selected_band_labels = selected_model.get("band_labels", band_labels)
+            comparison_energy_profiles[0]["band_labels"] = selected_band_labels
 
         return PredictionResult(
             model_name=model_name,
@@ -291,10 +295,17 @@ class InferenceService:
             if np.any(np.diff(centers) <= 0):
                 continue
 
+            # Extract band labels for this species
+            band_labels = model.get("band_labels", [])
+            if not band_labels:
+                band_labels = [f"Banda {i+1}" for i in range(len(centers))]
+
+            # Use original profile vector without interpolation to show the actual band energies
             other_profiles.append(
                 {
                     "species": model.get("species", "Desconocida"),
-                    "vector": np.interp(selected_centers, centers, profile, left=profile[0], right=profile[-1]).astype(np.float32),
+                    "vector": profile.astype(np.float32),
+                    "band_labels": band_labels,
                 }
             )
 
