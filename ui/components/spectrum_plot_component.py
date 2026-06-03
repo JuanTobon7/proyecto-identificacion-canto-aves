@@ -143,8 +143,7 @@ class SpectrumPlotComponent(QFrame):
         self.axes[0].legend(loc="upper right", fontsize=8)
 
         # Eje 2: Comparación espectral contra las otras especies del modelo
-        if filtered_freqs.size > 0 and filtered_mag.size > 0:
-            self.axes[1].plot(filtered_freqs, filtered_mag, color="#2563eb", linewidth=1.6, label="Espectro filtrado")
+        # Primero plotear los espectros de comparación (de fondo)
         if comparison_spectrum_profiles:
             colors = ["#f97316", "#16a34a", "#8b5cf6", "#ef4444", "#0f766e"]
             for index, profile in enumerate(comparison_spectrum_profiles):
@@ -154,7 +153,11 @@ class SpectrumPlotComponent(QFrame):
                 if freqs.size == 0 or magnitude.size == 0:
                     continue
                 color = colors[index % len(colors)]
-                self.axes[1].plot(freqs, self._normalize_magnitude(magnitude), linewidth=1.4, linestyle="--", color=color, label=species)
+                self.axes[1].plot(freqs, self._normalize_magnitude(magnitude), linewidth=1.4, linestyle="--", color=color, alpha=0.6, label=species)
+
+        # Luego plotear el espectro filtrado (más prominente, encima)
+        if filtered_freqs.size > 0 and filtered_mag.size > 0:
+            self.axes[1].plot(filtered_freqs, filtered_mag, color="#2563eb", linewidth=2.2, label="Espectro filtrado (tiempo real)", zorder=10)
 
         self.axes[1].set_title("Comparación espectral", color="#0f172a", fontweight="bold")
         self.axes[1].set_ylabel("Magnitud", color="#334155")
