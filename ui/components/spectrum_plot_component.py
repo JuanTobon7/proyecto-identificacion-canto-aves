@@ -34,10 +34,9 @@ class SpectrumPlotComponent(QFrame):
         # Eje 1: Espectro filtrado con bandas dinámicas
         if filtered_freqs.size > 0 and filtered_mag.size > 0:
             self.axes[0].plot(filtered_freqs, filtered_mag, color="#2563eb", linewidth=1.8, label="Espectro filtrado")
-            self.axes[0].fill_between(filtered_freqs, 0.0, filtered_mag, color="#60a5fa", alpha=0.14)
 
         if subband_frequencies:
-            self._plot_subband_lines(self.axes[0], subband_frequencies)
+            self._plot_subband_lines(self.axes[0], subband_frequencies, filtered_freqs, filtered_mag)
 
         self.axes[0].set_title("Espectro filtrado", color="#0f172a", fontweight="bold")
         self.axes[0].set_ylabel("Magnitud", color="#334155")
@@ -81,12 +80,35 @@ class SpectrumPlotComponent(QFrame):
         self.figure.subplots_adjust(hspace=0.48, left=0.09, right=0.98, top=0.94, bottom=0.10)
         self.canvas.draw_idle()
 
-    def _plot_subband_lines(self, axis, subband_frequencies: list[tuple[float, float]]) -> None:
-        color_lines = "#1d4ed8"
-        for low_freq, high_freq in subband_frequencies:
-            axis.axvline(low_freq, color=color_lines, linestyle="-", linewidth=1.2, alpha=0.55)
+    def _plot_subband_lines(self, axis, subband_frequencies: list[tuple[float, float]],
+                           filtered_freqs: np.ndarray | None = None,
+                           filtered_mag: np.ndarray | None = None) -> None:
+        colors_bands = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"]
+
+        # Get axis limits for filling
+        ylim = axis.get_ylim()
+        if ylim[1] == 0:  # If ylim not set yet
+            ylim = (0, 1)
+
+        # Fill each subband with a different color
+        for idx, (low_freq, high_freq) in enumerate(subband_frequencies):
+            color = colors_bands[idx % len(colors_bands)]
+            axis.axvspan(low_freq, high_freq, alpha=0.08, color=color)
+
+            # Draw vertical lines at band edges
+            axis.axvline(low_freq, color=color, linestyle="-", linewidth=1.2, alpha=0.55)
+
+            # Add frequency label at top of band
+            mid_freq = (low_freq + high_freq) / 2.0
+            freq_label = f"{int(low_freq)}-{int(high_freq)}Hz"
+            axis.text(mid_freq, ylim[1] * 0.95, freq_label,
+                     ha="center", va="top", fontsize=7, color=color, fontweight="bold", alpha=0.8)
+
+        # Draw the last edge
         if subband_frequencies:
-            axis.axvline(subband_frequencies[-1][1], color=color_lines, linestyle="-", linewidth=1.2, alpha=0.55)
+            last_high = subband_frequencies[-1][1]
+            color = colors_bands[(len(subband_frequencies) - 1) % len(colors_bands)]
+            axis.axvline(last_high, color=color, linestyle="-", linewidth=1.2, alpha=0.55)
 
     @staticmethod
     def _normalize_magnitude(magnitude: np.ndarray) -> np.ndarray:

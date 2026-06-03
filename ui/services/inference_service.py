@@ -153,10 +153,29 @@ class InferenceService:
             top_species,
         )
         comparison_energy_profiles = self._build_energy_comparisons(collection, selected_model, top_species)
-        # Add band labels from selected model to first comparison profile
-        if comparison_energy_profiles and not comparison_energy_profiles[0].get("band_labels"):
+
+        # Build band labels for selected model with frequency ranges
+        selected_band_labels = []
+        dynamic_bands = selected_model.get("dynamic_bands", [])
+        if dynamic_bands:
+            selected_band_labels = [f"{int(b.get('low', 0))}-{int(b.get('high', 0))}Hz"
+                                   for b in dynamic_bands]
+        if not selected_band_labels:
             selected_band_labels = selected_model.get("band_labels", band_labels)
-            comparison_energy_profiles[0]["band_labels"] = selected_band_labels
+
+        # Store selected model's band labels for energy vector display
+        if comparison_energy_profiles:
+            comparison_energy_profiles.insert(0, {
+                "species": top_species,
+                "vector": filtered_vector,
+                "band_labels": selected_band_labels,
+            })
+        else:
+            comparison_energy_profiles = [{
+                "species": top_species,
+                "vector": filtered_vector,
+                "band_labels": selected_band_labels,
+            }]
 
         return PredictionResult(
             model_name=model_name,
@@ -295,10 +314,16 @@ class InferenceService:
             if np.any(np.diff(centers) <= 0):
                 continue
 
-            # Extract band labels for this species
+            # Extract band labels or generate from dynamic_bands frequency ranges
             band_labels = model.get("band_labels", [])
             if not band_labels:
-                band_labels = [f"Banda {i+1}" for i in range(len(centers))]
+                # Try to get frequency ranges from dynamic_bands
+                dynamic_bands = model.get("dynamic_bands", [])
+                if dynamic_bands and len(dynamic_bands) == len(centers):
+                    band_labels = [f"{int(b.get('low', 0))}-{int(b.get('high', 0))}Hz"
+                                   for b in dynamic_bands]
+                else:
+                    band_labels = [f"Banda {i+1}" for i in range(len(centers))]
 
             # Use original profile vector without interpolation to show the actual band energies
             other_profiles.append(
