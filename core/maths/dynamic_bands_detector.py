@@ -78,7 +78,6 @@ class DynamicBandsDetector:
                 for i in range(n_bands)
             ]
 
-        # Energía acumulada normalizada
         cumulative = np.cumsum(spectrum)
         cumulative /= cumulative[-1]
 

@@ -431,8 +431,8 @@ class AudioAnalyzer:
  
     def verify_normalized_audios(self) -> bool:
         """
-        True  -> hay que normalizar
-        False -> ya están normalizados
+        True  -> hay que limpiar
+        False -> ya están limpios
         """
 
         normalized_dir = Path("dataset_aves_normalized")

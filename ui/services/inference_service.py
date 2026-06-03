@@ -356,7 +356,6 @@ class InferenceService:
     def confidence_hybrid(ranking: list[dict]) -> float:
         """
         Confianza simple: usa el score del mejor candidato directamente.
-        Score ya está normalizado en [0, 1] por la fórmula: score = 1 / (1 + distancia_L1)
         """
         if not ranking:
             return 0.0

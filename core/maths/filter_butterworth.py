@@ -133,7 +133,6 @@ class FilterButterworth:
         freqs = freqs[dc_mask]
         magnitude = magnitude[dc_mask]
  
-        # Energía acumulada normalizada
         energy = magnitude ** 2
         cumulative_energy = np.cumsum(energy)
         if cumulative_energy[-1] == 0:

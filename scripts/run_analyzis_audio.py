@@ -1,7 +1,6 @@
 """
 run_analysis.py
 ===============
-Script de entrada para analizar el corpus normalizado.
 
 Ejecución
 ---------
@@ -28,7 +27,7 @@ def main() -> None:
     parser.add_argument(
         "--normalized-dir",
         default=None,
-        help="Carpeta con audios normalizados (por defecto: RoutesPath.BANK_AUDIOS_NORMALIZED).",
+        help="Carpeta con audios limpios (por defecto: RoutesPath.BANK_AUDIOS_NORMALIZED).",
     )
     parser.add_argument(
         "--std-threshold",
