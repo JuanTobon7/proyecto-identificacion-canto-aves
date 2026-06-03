@@ -62,8 +62,16 @@ class EnergyVectorComponent(QFrame):
             color = colors_species[idx % len(colors_species)]
             index_comp = np.arange(len(vector), dtype=np.float64)
 
-            ax.plot(index_comp, vector, color=color, linewidth=2.2, marker="o", markersize=5)
-            ax.fill_between(index_comp, 0, vector, color=color, alpha=0.15)
+            # Usar barras en lugar de líneas para mejor visualización
+            ax.bar(
+                index_comp,
+                vector,
+                color=color,
+                alpha=0.75,
+                edgecolor=color,
+                linewidth=1.2
+            )
+
             ax.set_xticks(index_comp)
             ax.set_xticklabels(band_labels, rotation=35, ha="right", fontsize=8, color="#334155")
 
