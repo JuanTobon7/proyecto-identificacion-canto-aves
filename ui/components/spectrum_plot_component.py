@@ -16,47 +16,107 @@ class SpectrumPlotComponent(QFrame):
         self.axes = self.figure.subplots(2, 1, sharex=False)
         self.figure.subplots_adjust(hspace=0.48, left=0.09, right=0.98, top=0.94, bottom=0.10)
 
-        # Almacenar datos originales para zoom
-        self._original_xlim = None
-        self._zoom_level = 1.0
+        # Almacenar xlim originales para cada eje
+        self._original_xlim = [None, None]
 
-        # Conectar eventos de scroll para zoom
+        # Variables para pan (arrastre)
+        self._press = None
+        self._xpress = None
+
+        # Conectar eventos para zoom y pan
         self.canvas.mpl_connect("scroll_event", self._on_scroll)
+        self.canvas.mpl_connect("button_press_event", self._on_press)
+        self.canvas.mpl_connect("button_release_event", self._on_release)
+        self.canvas.mpl_connect("motion_notify_event", self._on_motion)
 
         layout = QVBoxLayout(self)
         layout.addWidget(self.canvas)
 
     def _on_scroll(self, event) -> None:
-        """Maneja scroll para zoom horizontal."""
-        if event.inaxes not in self.axes or event.button not in ["up", "down"]:
+        """Zoom interactivo con scroll del mouse en el eje X (frecuencia)."""
+        if event.inaxes is None or event.button is None:
             return
 
-        # Obtener el rango actual del eje X
-        cur_xlim = event.inaxes.get_xlim()
-        cur_width = cur_xlim[1] - cur_xlim[0]
+        # Encontrar cuál eje es
+        ax_idx = None
+        if event.inaxes == self.axes[0]:
+            ax_idx = 0
+        elif event.inaxes == self.axes[1]:
+            ax_idx = 1
+        else:
+            return
 
-        # Calcular nuevo rango
-        if event.button == "up":
-            self._zoom_level *= 0.8
-        elif event.button == "down":
-            self._zoom_level *= 1.2
+        ax = self.axes[ax_idx]
 
-        # Posición del mouse en coordenadas de datos
+        # Obtener posición actual del mouse
         xdata = event.xdata
         if xdata is None:
             return
 
-        # Nuevo ancho basado en zoom
-        new_width = cur_width / self._zoom_level
-        new_xlim = [xdata - (xdata - cur_xlim[0]) * (new_width / cur_width),
-                    xdata + (cur_xlim[1] - xdata) * (new_width / cur_width)]
+        # Zoom factor
+        zoom_factor = 1.5 if event.button == "up" else 1.0 / 1.5
 
-        # Limitar a los bordes originales
-        if self._original_xlim:
-            new_xlim[0] = max(new_xlim[0], self._original_xlim[0])
-            new_xlim[1] = min(new_xlim[1], self._original_xlim[1])
+        # Rango actual
+        cur_xlim = ax.get_xlim()
+        cur_center = (cur_xlim[0] + cur_xlim[1]) / 2.0
+        cur_width = cur_xlim[1] - cur_xlim[0]
 
-        event.inaxes.set_xlim(new_xlim)
+        # Nuevo rango centrado en la posición del mouse
+        new_width = cur_width / zoom_factor
+        new_left = xdata - (xdata - cur_xlim[0]) * (new_width / cur_width)
+        new_right = xdata + (cur_xlim[1] - xdata) * (new_width / cur_width)
+
+        # Limitar a bordes originales
+        if self._original_xlim[ax_idx]:
+            orig_left, orig_right = self._original_xlim[ax_idx]
+            new_left = max(new_left, orig_left)
+            new_right = min(new_right, orig_right)
+
+        ax.set_xlim(new_left, new_right)
+        self.canvas.draw_idle()
+
+    def _on_press(self, event) -> None:
+        """Detectar click del botón izquierdo para pan."""
+        if event.inaxes is None or event.button != 1:
+            return
+
+        self._press = event.inaxes
+        self._xpress = event.xdata
+
+    def _on_release(self, event) -> None:
+        """Liberar el pan."""
+        self._press = None
+        self._xpress = None
+
+    def _on_motion(self, event) -> None:
+        """Manejar arrastre para pan horizontal."""
+        if self._press is None or event.xdata is None:
+            return
+
+        ax = self._press
+        if ax not in self.axes:
+            return
+
+        # Calcular el desplazamiento
+        dx = event.xdata - self._xpress
+        cur_xlim = ax.get_xlim()
+        new_left = cur_xlim[0] - dx
+        new_right = cur_xlim[1] - dx
+
+        # Limitar a bordes originales
+        ax_idx = 0 if ax == self.axes[0] else 1
+        if self._original_xlim[ax_idx]:
+            orig_left, orig_right = self._original_xlim[ax_idx]
+            if new_left < orig_left:
+                diff = orig_left - new_left
+                new_left = orig_left
+                new_right += diff
+            if new_right > orig_right:
+                diff = new_right - orig_right
+                new_right = orig_right
+                new_left -= diff
+
+        ax.set_xlim(new_left, new_right)
         self.canvas.draw_idle()
 
     def set_data(
@@ -116,9 +176,10 @@ class SpectrumPlotComponent(QFrame):
             max_freq = float(np.max(filtered_freqs))
             self.axes[0].set_xlim(0, max_freq)
             self.axes[1].set_xlim(0, max_freq)
-            self._original_xlim = (0, max_freq)
+            self._original_xlim = [(0, max_freq), (0, max_freq)]
+        else:
+            self._original_xlim = [None, None]
 
-        self._zoom_level = 1.0
         self.figure.subplots_adjust(hspace=0.48, left=0.09, right=0.98, top=0.94, bottom=0.10)
         self.canvas.draw_idle()
 
