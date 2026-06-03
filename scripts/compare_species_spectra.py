@@ -52,16 +52,14 @@ def load_audio(path: Path, target_sr: int) -> tuple[np.ndarray, int]:
 def compute_average_spectrum(
     audio: np.ndarray, sample_rate: int, fft_points: int
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Calcula el espectro promedio normalizado."""
+    """Calcula el espectro promedio sin normalizar."""
     freqs, magnitude = FFTProcessor.compute_fft(audio, sample_rate)
 
     if freqs.size == 0 or magnitude.size == 0:
         return np.array([], dtype=np.float64), np.array([], dtype=np.float64)
 
-    peak = float(np.max(magnitude)) if np.max(magnitude) > 0 else 1.0
-    normalized = magnitude / peak
     freq_grid = np.linspace(0.0, sample_rate / 2.0, fft_points)
-    interpolated = np.interp(freq_grid, freqs, normalized, left=0.0, right=0.0)
+    interpolated = np.interp(freq_grid, freqs, magnitude, left=0.0, right=0.0)
     return freq_grid, interpolated
 
 
@@ -185,7 +183,7 @@ def plot_comparison(
         pad=20,
     )
     ax_spectrum.set_xlabel("Frecuencia (Hz)", fontsize=11)
-    ax_spectrum.set_ylabel("Magnitud normalizada", fontsize=11)
+    ax_spectrum.set_ylabel("Magnitud (dB)", fontsize=11)
     ax_spectrum.grid(True, linestyle="--", linewidth=0.7, alpha=0.6)
     ax_spectrum.set_xlim(0, max_freq)
     ax_spectrum.set_ylim(bottom=0)
@@ -270,7 +268,7 @@ def plot_comparison(
     ax_energy.text(
         0.5,
         1.15,
-        "Vectores de Energía Normalizada",
+        "Vectores de Energía por Subbanda",
         ha="center",
         fontsize=12,
         fontweight="bold",

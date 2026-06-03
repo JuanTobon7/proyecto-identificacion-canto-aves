@@ -5,12 +5,6 @@ class EnergyVector:
     @staticmethod
     def compute(band_energies: np.ndarray) -> np.ndarray:
         """
-        Normaliza energías del banco de filtros
-        para obtener firma espectral.
+        Retorna las energías del banco de filtros sin normalizar.
         """
-        total = np.sum(band_energies)
-
-        if total <= 0:
-            return np.zeros_like(band_energies)
-
-        return band_energies / total
+        return np.asarray(band_energies, dtype=np.float32)
