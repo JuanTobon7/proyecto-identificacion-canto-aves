@@ -218,8 +218,11 @@ class SpectrumPlotComponent(QFrame):
 
     @staticmethod
     def _normalize_magnitude(magnitude: np.ndarray) -> np.ndarray:
-        """Retorna la magnitud sin normalizar."""
-        return np.asarray(magnitude, dtype=np.float64)
+        magnitude = np.asarray(magnitude, dtype=np.float64)
+        if magnitude.size == 0:
+            return magnitude
+        peak = float(np.max(magnitude)) if np.max(magnitude) > 0 else 1.0
+        return magnitude / peak
 
     @staticmethod
     def _max_frequency(original_freqs: np.ndarray, filtered_freqs: np.ndarray | None) -> float:
