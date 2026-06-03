@@ -14,7 +14,8 @@ class Predict:
 
     Para cada modelo en la colección:
       1. Aplica el filtro pasa-banda de sus params al audio de entrada.
-      2. Construye sub-bandas uniformes iguales al largo de profile_vector.
+            2. Construye sub-bandas usando dynamic_bands si el modelo las trae,
+                 o sub-bandas uniformes como fallback.
       3. Calcula la firma espectral (EnergyVector) sobre esas sub-bandas.
       4. Calcula distancia L1 (suma de diferencias absolutas) con el perfil del modelo.
     La especie con menor distancia es la predicción (según guía: min{EXC, EXD}).
@@ -99,7 +100,12 @@ class Predict:
         except ValueError:
             return np.inf
 
-        sub_bands   = FFTProcessor.build_subbands(low_freq, high_freq, n_bands)
+        sub_bands = FFTProcessor.build_subbands(
+            low_freq,
+            high_freq,
+            n_bands,
+            dynamic_bands=model.get("dynamic_bands"),
+        )
         energies    = FFTProcessor.compute_band_energies(filtered, self._sample_rate, sub_bands)
         energy_vec  = EnergyVector.compute(energies).astype(np.float64)
 

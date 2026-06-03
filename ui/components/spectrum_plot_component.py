@@ -21,57 +21,43 @@ class SpectrumPlotComponent(QFrame):
 
     def set_data(
         self,
-        original_freqs: np.ndarray,
-        original_magnitude: np.ndarray,
-        filtered_freqs: np.ndarray,
-        filtered_magnitude: np.ndarray,
-        profile_vector: np.ndarray | None = None,
-        std_energy_vector: np.ndarray | None = None,
         subband_frequencies: list[tuple[float, float]] | None = None,
-        original_band_energies: np.ndarray | None = None,
-        filtered_band_energies: np.ndarray | None = None,
+        filtered_freqs: np.ndarray | None = None,
+        filtered_magnitude: np.ndarray | None = None,
+        comparison_spectrum_profiles: list[dict[str, np.ndarray]] | None = None,
     ) -> None:
         self.figure.clear()
         self.axes = self.figure.subplots(2, 1, sharex=False)
-        original_mag = self._normalize_magnitude(original_magnitude)
-        filtered_mag = self._normalize_magnitude(filtered_magnitude)
+        filtered_freqs = np.asarray(filtered_freqs, dtype=np.float64) if filtered_freqs is not None else np.array([])
+        filtered_mag = self._normalize_magnitude(filtered_magnitude) if filtered_magnitude is not None else np.array([])
 
-        # Eje 1: Espectro original con perfil y sub-bandas
-        self.axes[0].plot(original_freqs, original_mag, color="#d97706", linewidth=1.6, label="Espectro original")
-        self.axes[0].fill_between(original_freqs, 0.0, original_mag, color="#f59e0b", alpha=0.14)
-        
-        # Agregar visualización de reconocimiento en eje original
-        if profile_vector is not None and subband_frequencies is not None and len(profile_vector) > 0:
-            self._plot_recognition_data(
-                self.axes[0],
-                profile_vector,
-                std_energy_vector,
-                subband_frequencies,
-                original_band_energies,
-                "original"
-            )
-        
-        self.axes[0].set_title("Espectro original", color="#0f172a", fontweight="bold")
+        # Eje 1: Espectro filtrado con bandas dinámicas
+        if filtered_freqs.size > 0 and filtered_mag.size > 0:
+            self.axes[0].plot(filtered_freqs, filtered_mag, color="#2563eb", linewidth=1.8, label="Espectro filtrado")
+            self.axes[0].fill_between(filtered_freqs, 0.0, filtered_mag, color="#60a5fa", alpha=0.14)
+
+        if subband_frequencies:
+            self._plot_subband_lines(self.axes[0], subband_frequencies)
+
+        self.axes[0].set_title("Espectro filtrado", color="#0f172a", fontweight="bold")
         self.axes[0].set_ylabel("Magnitud", color="#334155")
-        self.axes[0].tick_params(labelbottom=False)
         self.axes[0].legend(loc="upper right", fontsize=8)
 
-        # Eje 2: Espectro filtrado con perfil y sub-bandas
-        self.axes[1].plot(filtered_freqs, filtered_mag, color="#2563eb", linewidth=1.8, label="Espectro filtrado")
-        self.axes[1].fill_between(filtered_freqs, 0.0, filtered_mag, color="#60a5fa", alpha=0.16)
-        
-        # Agregar visualización de reconocimiento en eje filtrado
-        if profile_vector is not None and subband_frequencies is not None and len(profile_vector) > 0:
-            self._plot_recognition_data(
-                self.axes[1],
-                profile_vector,
-                std_energy_vector,
-                subband_frequencies,
-                filtered_band_energies,
-                "filtered"
-            )
-        
-        self.axes[1].set_title("Espectro filtrado", color="#0f172a", fontweight="bold")
+        # Eje 2: Comparación espectral contra las otras especies del modelo
+        if filtered_freqs.size > 0 and filtered_mag.size > 0:
+            self.axes[1].plot(filtered_freqs, filtered_mag, color="#2563eb", linewidth=1.6, label="Espectro filtrado")
+        if comparison_spectrum_profiles:
+            colors = ["#f97316", "#16a34a", "#8b5cf6", "#ef4444", "#0f766e"]
+            for index, profile in enumerate(comparison_spectrum_profiles):
+                species = str(profile.get("species", f"Especie {index + 1}"))
+                freqs = np.asarray(profile.get("freqs", []), dtype=np.float64)
+                magnitude = np.asarray(profile.get("magnitude", []), dtype=np.float64)
+                if freqs.size == 0 or magnitude.size == 0:
+                    continue
+                color = colors[index % len(colors)]
+                self.axes[1].plot(freqs, self._normalize_magnitude(magnitude), linewidth=1.4, linestyle="--", color=color, label=species)
+
+        self.axes[1].set_title("Comparación espectral", color="#0f172a", fontweight="bold")
         self.axes[1].set_ylabel("Magnitud", color="#334155")
         self.axes[1].set_xlabel("Frecuencia (Hz)", color="#334155")
         self.axes[1].legend(loc="upper right", fontsize=8)
@@ -83,78 +69,24 @@ class SpectrumPlotComponent(QFrame):
             for spine in axis.spines.values():
                 spine.set_color("#94a3b8")
             axis.set_ylim(bottom=0.0)
-            max_freq = self._max_frequency(original_freqs, filtered_freqs)
+            max_freq = self._max_frequency(filtered_freqs, None)
             if max_freq > 0:
                 axis.set_xlim(0, max_freq)
+
+        if filtered_freqs.size > 0:
+            max_freq = float(np.max(filtered_freqs))
+            self.axes[0].set_xlim(0, max_freq)
+            self.axes[1].set_xlim(0, max_freq)
 
         self.figure.subplots_adjust(hspace=0.48, left=0.09, right=0.98, top=0.94, bottom=0.10)
         self.canvas.draw_idle()
 
-    def _plot_recognition_data(
-        self,
-        axis,
-        profile_vector: np.ndarray,
-        std_energy_vector: np.ndarray | None,
-        subband_frequencies: list[tuple[float, float]],
-        band_energies: np.ndarray | None,
-        source: str,
-    ) -> None:
-        """Grafica líneas de sub-bandas, perfil vector y energía normalizada."""
-        
-        # Colores según el source
-        if source == "original":
-            color_lines = "#d97706"
-            color_profile = "#ea580c"
-            color_energy = "#f59e0b"
-        else:
-            color_lines = "#2563eb"
-            color_profile = "#1d4ed8"
-            color_energy = "#60a5fa"
-        
-        # Líneas verticales delimitando sub-bandas
+    def _plot_subband_lines(self, axis, subband_frequencies: list[tuple[float, float]]) -> None:
+        color_lines = "#1d4ed8"
         for low_freq, high_freq in subband_frequencies:
-            axis.axvline(low_freq, color=color_lines, linestyle=":", linewidth=0.9, alpha=0.5)
-        
-        # Línea final de la última sub-banda
+            axis.axvline(low_freq, color=color_lines, linestyle=":", linewidth=0.85, alpha=0.45)
         if subband_frequencies:
-            axis.axvline(subband_frequencies[-1][1], color=color_lines, linestyle=":", linewidth=0.9, alpha=0.5)
-        
-        # Calcular frecuencias centrales para plotear el perfil
-        band_centers = np.array([(low + high) / 2.0 for low, high in subband_frequencies])
-        
-        # Normalizar el profile_vector
-        profile_normalized = self._normalize_magnitude(profile_vector)
-        
-        # Plotear profile_vector como línea
-        axis.plot(
-            band_centers,
-            profile_normalized,
-            color=color_profile,
-            linewidth=2.0,
-            marker="o",
-            markersize=5,
-            label="Perfil umbral",
-            alpha=0.9
-        )
-        
-        # Graficar área de desviación estándar (perfil ± std)
-        if std_energy_vector is not None and len(std_energy_vector) == len(profile_vector):
-            std_normalized = self._normalize_magnitude(std_energy_vector)
-            upper = profile_normalized + std_normalized
-            lower = np.maximum(0, profile_normalized - std_normalized)
-            axis.fill_between(band_centers, lower, upper, color=color_profile, alpha=0.15, label="Rango ±std")
-        
-        # Graficar energía actual normalizada si está disponible
-        if band_energies is not None and len(band_energies) == len(profile_vector):
-            energy_normalized = self._normalize_magnitude(band_energies)
-            axis.bar(
-                band_centers,
-                energy_normalized,
-                width=(band_centers[1] - band_centers[0]) * 0.6 if len(band_centers) > 1 else 100,
-                color=color_energy,
-                alpha=0.4,
-                label="Energía actual"
-            )
+            axis.axvline(subband_frequencies[-1][1], color=color_lines, linestyle=":", linewidth=0.85, alpha=0.45)
 
     @staticmethod
     def _normalize_magnitude(magnitude: np.ndarray) -> np.ndarray:
@@ -165,10 +97,10 @@ class SpectrumPlotComponent(QFrame):
         return magnitude / peak
 
     @staticmethod
-    def _max_frequency(original_freqs: np.ndarray, filtered_freqs: np.ndarray) -> float:
+    def _max_frequency(original_freqs: np.ndarray, filtered_freqs: np.ndarray | None) -> float:
         max_freq = 0.0
         if original_freqs.size > 0:
             max_freq = max(max_freq, float(np.max(original_freqs)))
-        if filtered_freqs.size > 0:
+        if filtered_freqs is not None and filtered_freqs.size > 0:
             max_freq = max(max_freq, float(np.max(filtered_freqs)))
         return max_freq

@@ -39,3 +39,5 @@ class PredictionResult:
     subband_frequencies: list[tuple[float, float]] = field(default_factory=list)
     original_band_energies: np.ndarray = field(default_factory=lambda: np.array([], dtype=np.float32))
     filtered_band_energies: np.ndarray = field(default_factory=lambda: np.array([], dtype=np.float32))
+    comparison_spectrum_profiles: list[dict[str, Any]] = field(default_factory=list)
+    comparison_energy_profiles: list[dict[str, Any]] = field(default_factory=list)

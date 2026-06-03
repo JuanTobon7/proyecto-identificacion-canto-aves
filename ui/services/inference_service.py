@@ -20,6 +20,7 @@ class InferenceService:
         self.models_mgmt = ModelsManagement(base_dir=model_dir)
         self.audio_service = AudioService()
         self.bird_repo = BirdRepository(env="training")
+        self._analysis_cache: dict[str, Any] | None = None
 
     def available_models(self) -> list[str]:
         models: list[str] = []
@@ -121,8 +122,9 @@ class InferenceService:
         original_vector, band_labels = self.audio_service.energy_vector(audio, sample_rate, selected_model)
         filtered_vector, _ = self.audio_service.energy_vector(filtered, sample_rate, selected_model)
 
-        original_energies = self.audio_service.fft.compute_band_energies(audio, sample_rate, self.audio_service.build_model_subbands(selected_model)[0])
-        filtered_energies = self.audio_service.fft.compute_band_energies(filtered, sample_rate, self.audio_service.build_model_subbands(selected_model)[0])
+        subband_frequencies, _ = self.audio_service.build_model_subbands(selected_model)
+        original_energies = self.audio_service.fft.compute_band_energies(audio, sample_rate, subband_frequencies)
+        filtered_energies = self.audio_service.fft.compute_band_energies(filtered, sample_rate, subband_frequencies)
 
         bird_info = self.bird_repo.get_by_species(top_species)
         original_stats = self.audio_service.compute_stats(audio, sample_rate, original_energies, band_labels)
@@ -146,13 +148,11 @@ class InferenceService:
         # Datos para visualización de reconocimiento
         profile_vector = np.array(selected_model.get("profile_vector", []), dtype=np.float32)
         std_energy_vector = np.array(selected_model.get("std_energy_vector", []), dtype=np.float32)
-        model_params = selected_model.get("params", {})
-        low_freq = float(model_params.get("low_freq", effective_low_freq))
-        high_freq = float(model_params.get("high_freq", effective_high_freq))
-        n_bands = len(profile_vector) if len(profile_vector) > 0 else 8
-        
-        from core.maths.fft import FFTProcessor
-        subband_frequencies = FFTProcessor.build_subbands(low_freq, high_freq, n_bands)
+        comparison_spectrum_profiles = self._build_spectrum_comparisons(
+            filtered_freqs,
+            top_species,
+        )
+        comparison_energy_profiles = self._build_energy_comparisons(collection, selected_model, top_species)
 
         return PredictionResult(
             model_name=model_name,
@@ -182,6 +182,8 @@ class InferenceService:
             subband_frequencies=subband_frequencies,
             original_band_energies=original_energies,
             filtered_band_energies=filtered_energies,
+            comparison_spectrum_profiles=comparison_spectrum_profiles,
+            comparison_energy_profiles=comparison_energy_profiles,
         )
 
     def _select_model(self, collection: dict[str, Any], species: str) -> dict[str, Any]:
@@ -189,6 +191,117 @@ class InferenceService:
             if model.get("species") == species:
                 return model
         return collection.get("models", [{}])[0]
+
+    def _analysis_path(self) -> Path:
+        return Path(self.model_dir) / "bird_spectrum_analysis.json"
+
+    def _load_analysis(self) -> dict[str, Any]:
+        if self._analysis_cache is not None:
+            return self._analysis_cache
+
+        analysis_path = self._analysis_path()
+        if not analysis_path.exists():
+            self._analysis_cache = {}
+            return self._analysis_cache
+
+        try:
+            import json
+
+            with open(analysis_path, "r", encoding="utf-8") as fh:
+                self._analysis_cache = json.load(fh)
+        except Exception:
+            self._analysis_cache = {}
+        return self._analysis_cache
+
+    @staticmethod
+    def _band_centers_from_model(model: dict[str, Any]) -> np.ndarray:
+        bands = model.get("dynamic_bands", [])
+        centers: list[float] = []
+        for band in bands:
+            try:
+                low = float(band["low"])
+                high = float(band["high"])
+            except (TypeError, KeyError, ValueError):
+                continue
+            if high > low:
+                centers.append((low + high) / 2.0)
+
+        if centers:
+            return np.asarray(centers, dtype=np.float32)
+
+        profile = np.asarray(model.get("profile_vector", []), dtype=np.float32)
+        params = model.get("params", {})
+        low_freq = float(params.get("low_freq", 0.0))
+        high_freq = float(params.get("high_freq", 0.0))
+        if profile.size == 0 or high_freq <= low_freq:
+            return np.array([], dtype=np.float32)
+
+        edges = np.linspace(low_freq, high_freq, profile.size + 1)
+        return np.asarray([(edges[index] + edges[index + 1]) / 2.0 for index in range(profile.size)], dtype=np.float32)
+
+    def _build_spectrum_comparisons(self, live_freqs: np.ndarray, top_species: str) -> list[dict[str, Any]]:
+        analysis = self._load_analysis()
+        results = analysis.get("analysis_results", []) if isinstance(analysis, dict) else []
+        live_freqs = np.asarray(live_freqs, dtype=np.float64)
+        if live_freqs.size == 0:
+            return []
+
+        comparisons: list[dict[str, Any]] = []
+        for entry in results:
+            if entry.get("species") == top_species:
+                continue
+            spectrum_profile = entry.get("spectrum_profile", {})
+            freqs = np.asarray(spectrum_profile.get("frequencies", []), dtype=np.float64)
+            magnitudes = np.asarray(spectrum_profile.get("magnitude_mean", []), dtype=np.float64)
+            if freqs.size == 0 or magnitudes.size == 0:
+                continue
+            if freqs.size != magnitudes.size:
+                continue
+            comparisons.append(
+                {
+                    "species": entry.get("species", "Desconocida"),
+                    "freqs": live_freqs.astype(np.float32),
+                    "magnitude": np.interp(live_freqs, freqs, magnitudes, left=0.0, right=0.0).astype(np.float32),
+                }
+            )
+
+        return comparisons
+
+    def _build_energy_comparisons(
+        self,
+        collection: dict[str, Any],
+        selected_model: dict[str, Any],
+        top_species: str,
+    ) -> list[dict[str, Any]]:
+        selected_centers = self._band_centers_from_model(selected_model)
+        if selected_centers.size == 0:
+            return []
+
+        other_profiles: list[dict[str, Any]] = []
+        for model in collection.get("models", []):
+            if model.get("species") == top_species:
+                continue
+            profile = np.asarray(model.get("profile_vector", []), dtype=np.float64)
+            if profile.size == 0:
+                continue
+
+            centers = self._band_centers_from_model(model)
+            if centers.size != profile.size or centers.size == 0:
+                continue
+            if np.any(np.diff(centers) <= 0):
+                continue
+
+            other_profiles.append(
+                {
+                    "species": model.get("species", "Desconocida"),
+                    "vector": np.interp(selected_centers, centers, profile, left=profile[0], right=profile[-1]).astype(np.float32),
+                }
+            )
+
+        if not other_profiles:
+            return []
+
+        return other_profiles
 
     @staticmethod
     def _resolve_sample_rate(collection: dict[str, Any]) -> int:
@@ -238,17 +351,6 @@ class InferenceService:
         if denominator <= 0:
             return 0.0
         return float(exp_scores[0] / denominator)
-    
-    @staticmethod
-    def confidence_margin(ranking):
-
-        if len(ranking) < 2:
-            return 1.0
-
-        best = ranking[0]["score"]
-        second = ranking[1]["score"]
-
-        return float(np.clip((best - second) / 0.2, 0, 1))
 
     def _rejection_threshold(self, collection: dict[str, Any], model: dict[str, Any]) -> float:
         for source in (model, model.get("params", {}), collection):

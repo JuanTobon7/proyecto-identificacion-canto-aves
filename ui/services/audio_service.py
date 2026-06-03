@@ -43,6 +43,13 @@ class AudioService:
     def build_model_subbands(self, model: dict[str, Any]) -> tuple[list[tuple[float, float]], list[str]]:
         low_freq, high_freq = self._model_band(model)
         profile_vector = np.asarray(model.get("profile_vector", []), dtype=np.float32)
+        dynamic_bands = self._dynamic_bands(model)
+        if dynamic_bands:
+            bands = dynamic_bands
+            labels = [f"{low:.0f}-{high:.0f}" for low, high in bands]
+            return bands, labels
+
+        low_freq, high_freq = self._model_band(model)
         band_count = max(1, int(profile_vector.size))
         edges = np.linspace(low_freq, high_freq, band_count + 1)
         bands = [(float(edges[index]), float(edges[index + 1])) for index in range(band_count)]
@@ -157,6 +164,19 @@ class AudioService:
         params = model.get("params", {})
         return float(params["low_freq"]), float(params["high_freq"])
 
+    @staticmethod
+    def _dynamic_bands(model: dict[str, Any]) -> list[tuple[float, float]]:
+        bands = model.get("dynamic_bands", [])
+        normalized: list[tuple[float, float]] = []
+        for band in bands:
+            try:
+                low = float(band["low"])
+                high = float(band["high"])
+            except (TypeError, KeyError, ValueError):
+                continue
+            if high > low:
+                normalized.append((low, high))
+        return normalized
     @staticmethod
     def _max_run(mask: np.ndarray) -> int:
         max_run = 0

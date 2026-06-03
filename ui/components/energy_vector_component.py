@@ -17,15 +17,27 @@ class EnergyVectorComponent(QFrame):
         layout = QVBoxLayout(self)
         layout.addWidget(self.canvas)
 
-    def set_data(self, original: np.ndarray, filtered: np.ndarray, labels: list[str]) -> None:
+    def set_data(
+        self,
+        current: np.ndarray,
+        labels: list[str],
+        comparison_profiles: list[dict[str, np.ndarray]] | None = None,
+    ) -> None:
         self.axis.clear()
-        index = np.arange(len(labels))
-        width = 0.4
-        self.axis.bar(index - width / 2, original, width=width, color="#38bdf8", label="Original")
-        self.axis.bar(index + width / 2, filtered, width=width, color="#22c55e", label="Filtrada")
+        index = np.arange(len(labels), dtype=np.float64)
+        self.axis.plot(index, current, color="#2563eb", linewidth=2.0, marker="o", markersize=4, label="Espectro filtrado")
+        if comparison_profiles:
+            colors = ["#f97316", "#16a34a", "#8b5cf6", "#ef4444", "#0f766e"]
+            for idx, profile in enumerate(comparison_profiles):
+                species = str(profile.get("species", f"Especie {idx + 1}"))
+                vector = np.asarray(profile.get("vector", []), dtype=np.float64)
+                if vector.size != index.size or vector.size == 0:
+                    continue
+                color = colors[idx % len(colors)]
+                self.axis.plot(index, vector, color=color, linewidth=1.8, linestyle="--", marker="s", markersize=4, label=species)
         self.axis.set_xticks(index)
-        self.axis.set_xticklabels(labels, rotation=25, ha="right", fontsize=8, color="#cbd5e1")
-        self.axis.set_title("Vector de energia", color="#0f172a")
+        self.axis.set_xticklabels(labels, rotation=25, ha="right", fontsize=8, color="#334155")
+        self.axis.set_title("Comparación de vectores de energía", color="#0f172a")
         self.axis.set_facecolor("#f8fafc")
         self.axis.grid(True, axis="y", color="#cbd5e1", alpha=0.6)
         self.axis.tick_params(colors="#334155")
