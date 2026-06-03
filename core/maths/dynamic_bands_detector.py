@@ -1,4 +1,5 @@
 import numpy as np
+from pathlib import Path
 from scipy.signal import stft
 from scipy.ndimage import gaussian_filter1d
 
@@ -11,7 +12,7 @@ class DynamicBandsDetector:
 
     @staticmethod
     def detect_bands_from_audio(
-        audio: np.ndarray,
+        audio: np.ndarray | str | Path,
         sr: int,
         low_freq: float,
         high_freq: float,
@@ -24,6 +25,19 @@ class DynamicBandsDetector:
         Cada banda contiene aproximadamente la misma cantidad
         de energía espectral.
         """
+
+        # Si es un path, cargar el audio
+        if isinstance(audio, (str, Path)):
+            try:
+                import librosa
+                audio, _ = librosa.load(str(audio), sr=sr, mono=True)
+            except Exception:
+                return [(low_freq, high_freq)]
+
+        # Validar que audio es un array válido
+        audio = np.asarray(audio, dtype=np.float32)
+        if audio.size == 0 or audio.ndim != 1:
+            return [(low_freq, high_freq)]
 
         # Espectrograma
         freqs, _, zxx = stft(
