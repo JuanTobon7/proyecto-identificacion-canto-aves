@@ -189,19 +189,6 @@ class AudioAnalyzer:
         # --- FFT y frecuencias ---
         freqs, magnitude = self._fft.compute_fft(y, sr)
         if len(freqs) > 0:
-            # Centroide espectral
-            total_mag = np.sum(magnitude)
-            if total_mag > 0:
-                stats.spectral_centroid = float(
-                    np.sum(freqs * magnitude) / total_mag
-                )
-                # Ancho de banda espectral
-                stats.spectral_bandwidth = float(
-                    np.sqrt(
-                        np.sum(((freqs - stats.spectral_centroid) ** 2) * magnitude)
-                        / total_mag
-                    )
-                )
             # Frecuencia dominante
             stats.dominant_freq_hz = float(freqs[np.argmax(magnitude)])
  
