@@ -130,18 +130,44 @@ def analyze_species(
     filtered_spectrum_stack = np.vstack(filtered_spectrum_values)
     energy_stack = np.vstack(energy_values)
 
-    # Usar primeras bandas dinámicas como referencia
-    dynamic_bands = DynamicBandsDetector.detect_bands_from_audio(
-        AudioConverter.resample(
-            librosa.load(str(audio_paths[0]), sr=sample_rate, mono=True)[0],
-            44100,
+    # Las bandas dinámicas ya se detectaron en el primer archivo
+    # que fue procesado exitosamente arriba
+    if energy_stack.shape[0] == 0:
+        return {
+            "freq_grid": np.array([], dtype=np.float64),
+            "mean_spectrum": np.array([], dtype=np.float64),
+            "mean_filtered_spectrum": np.array([], dtype=np.float64),
+            "dynamic_bands": [],
+            "band_labels": [],
+            "mean_energy": np.array([], dtype=np.float64),
+        }
+
+    # Detectar bandas dinámicas del primer audio procesado exitosamente
+    first_successful_audio = None
+    for audio_path in audio_paths[:10]:
+        try:
+            audio, sr = load_audio(audio_path, sample_rate)
+            if audio.size > 0 and sr > 0:
+                first_successful_audio = audio
+                break
+        except Exception:
+            continue
+
+    if first_successful_audio is not None:
+        dynamic_bands = DynamicBandsDetector.detect_bands_from_audio(
+            first_successful_audio,
             sample_rate,
-        ),
-        sample_rate,
-        low_freq,
-        high_freq,
-        band_count,
-    )
+            low_freq,
+            high_freq,
+            band_count,
+        )
+    else:
+        # Fallback a bandas uniformes
+        step = (high_freq - low_freq) / band_count
+        dynamic_bands = [
+            (low_freq + i * step, low_freq + (i + 1) * step)
+            for i in range(band_count)
+        ]
 
     band_labels = [f"{int(low)}-{int(high)}Hz" for low, high in dynamic_bands]
 
@@ -304,7 +330,7 @@ def plot_comparison(
     ax_energy.text(
         0.5,
         1.15,
-        "Vectores de Energía Normalizada",
+        "Vectores de Energía",
         ha="center",
         fontsize=12,
         fontweight="bold",
