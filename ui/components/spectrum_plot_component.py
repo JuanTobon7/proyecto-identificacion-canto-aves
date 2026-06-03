@@ -129,7 +129,7 @@ class SpectrumPlotComponent(QFrame):
         self.figure.clear()
         self.axes = self.figure.subplots(2, 1, sharex=False)
         filtered_freqs = np.asarray(filtered_freqs, dtype=np.float64) if filtered_freqs is not None else np.array([])
-        filtered_mag = self._normalize_magnitude(filtered_magnitude) if filtered_magnitude is not None else np.array([])
+        filtered_mag = np.asarray(filtered_magnitude, dtype=np.float64) if filtered_magnitude is not None else np.array([])
 
         # Eje 1: Espectro filtrado con bandas dinámicas
         if filtered_freqs.size > 0 and filtered_mag.size > 0:
@@ -153,7 +153,7 @@ class SpectrumPlotComponent(QFrame):
                 if freqs.size == 0 or magnitude.size == 0:
                     continue
                 color = colors[index % len(colors)]
-                self.axes[1].plot(freqs, self._normalize_magnitude(magnitude), linewidth=1.4, linestyle="--", color=color, alpha=0.6, label=species)
+                self.axes[1].plot(freqs, magnitude, linewidth=1.4, linestyle="--", color=color, alpha=0.6, label=species)
 
         # Luego plotear el espectro filtrado (más prominente, encima)
         if filtered_freqs.size > 0 and filtered_mag.size > 0:
@@ -215,11 +215,6 @@ class SpectrumPlotComponent(QFrame):
             last_high = subband_frequencies[-1][1]
             color = colors_bands[(len(subband_frequencies) - 1) % len(colors_bands)]
             axis.axvline(last_high, color=color, linestyle="-", linewidth=1.2, alpha=0.55)
-
-    @staticmethod
-    def _normalize_magnitude(magnitude: np.ndarray) -> np.ndarray:
-        """Retorna la magnitud sin normalizar."""
-        return np.asarray(magnitude, dtype=np.float64)
 
     @staticmethod
     def _max_frequency(original_freqs: np.ndarray, filtered_freqs: np.ndarray | None) -> float:
